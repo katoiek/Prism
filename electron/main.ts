@@ -11,6 +11,9 @@ import { getConnectionSecrets, setConnectionSecrets, deleteConnectionSecrets, ge
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, '../public')
 
+// Set app name for macOS dock
+app.name = 'Prism'
+
 let win: BrowserWindow | null
 
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']

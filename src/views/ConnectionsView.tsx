@@ -103,7 +103,8 @@ export function ConnectionsView() {
 				scope: parsed.meta?.scope,
 				isNotion: notionDetected,
 				notionVersion: notionDetected ? '2025-09-03' : undefined,
-				iconUrl: detectedIcon || undefined
+				iconUrl: detectedIcon || undefined,
+				apiVersion: parsed.version
 			})
 
 			// Auto-expand the new connection
@@ -246,6 +247,11 @@ export function ConnectionsView() {
 										<CardTitle className="text-xl">{c.name}</CardTitle>
 										<CardDescription className="font-mono text-xs">{c.specUrlOrPath}</CardDescription>
 									</div>
+									{c.apiVersion && (
+										<div className="bg-secondary/50 text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium">
+											v{c.apiVersion}
+										</div>
+									)}
 									<div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold">
 										{c.specContent?.endpoints.length || 0} {t('connections.endpoints', { defaultValue: 'Endpoints' })}
 									</div>

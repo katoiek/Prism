@@ -35,7 +35,7 @@ export function ConnectionSettings({ connection }: { connection: Connection }) {
 	const [tokenUrl, setTokenUrl] = useState(connection.tokenUrl || '')
 	const [scope, setScope] = useState(connection.scope || '')
 	const [apiToken, setApiToken] = useState(connection.apiToken || '')
-	const [isNotion, setIsNotion] = useState(connection.isNotion || false)
+
 	const [notionVersion, setNotionVersion] = useState(connection.notionVersion || '2025-09-03')
 	const [copied, setCopied] = useState(false)
 
@@ -78,7 +78,6 @@ export function ConnectionSettings({ connection }: { connection: Connection }) {
 			tokenUrl,
 			scope,
 			apiToken,
-			isNotion,
 			notionVersion,
 			authType: 'oauth2'
 		})
@@ -91,32 +90,15 @@ export function ConnectionSettings({ connection }: { connection: Connection }) {
 
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 					{connection.isNotion && (
-						<div className="flex items-center gap-6 col-span-full mb-2">
-							<div className="flex items-center space-x-2">
-								<input
-									type="checkbox"
-									id="isNotion"
-									className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-									checked={isNotion}
-									onChange={e => setIsNotion(e.target.checked)}
-								/>
-								<label htmlFor="isNotion" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-									{t('connSettings.isNotion')}
-								</label>
-							</div>
-
-							{isNotion && (
-								<div className="flex items-center gap-2">
-									<label htmlFor="notionVersion" className="text-sm font-medium whitespace-nowrap">{t('connSettings.notionVersion')}</label>
-									<Input
-										id="notionVersion"
-										value={notionVersion}
-										onChange={e => setNotionVersion(e.target.value)}
-										placeholder="2025-09-03"
-										className="h-8 w-32"
-									/>
-								</div>
-							)}
+						<div className="flex items-center gap-2 col-span-full mb-2">
+							<label htmlFor="notionVersion" className="text-sm font-medium whitespace-nowrap">{t('connSettings.notionVersion')}</label>
+							<Input
+								id="notionVersion"
+								value={notionVersion}
+								onChange={e => setNotionVersion(e.target.value)}
+								placeholder="2025-09-03"
+								className="h-8 w-32"
+							/>
 						</div>
 					)}
 

@@ -27,6 +27,7 @@ export interface Connection {
 	isNotion?: boolean
 	notionVersion?: string
 	iconUrl?: string
+	apiVersion?: string // Parsed from OpenAPI spec info.version
 }
 
 interface AppState {

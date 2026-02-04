@@ -39,24 +39,45 @@ export function SettingsView() {
 					<div className="space-y-4">
 						<h3 className="text-lg font-semibold">{t('settings.aiProvider')}</h3>
 						<div className="flex gap-4">
-							{(['openai', 'anthropic', 'google'] as const).map((p) => (
-								<label key={p} className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${aiProvider === p ? 'border-primary bg-primary/5 shadow-sm' : 'border-border bg-muted/30 hover:bg-muted/50'
-									}`}>
-									<input
-										type="radio"
-										className="sr-only"
-										name="aiProvider"
-										checked={aiProvider === p}
-										onChange={() => setAiProvider(p)}
-									/>
-									<span className="capitalize font-bold">{p}</span>
-									<span className="text-[10px] text-muted-foreground">
-										{p === 'openai' && 'GPT-4o mini'}
-										{p === 'anthropic' && 'Claude 3.5 Sonnet'}
-										{p === 'google' && 'Gemini 1.5 Flash'}
-									</span>
-								</label>
-							))}
+							{(['openai', 'anthropic', 'google'] as const).map((p) => {
+								const hasApiKey = p === 'openai' ? !!openaiApiKey :
+									p === 'anthropic' ? !!anthropicApiKey :
+										!!googleApiKey
+								const isSelected = aiProvider === p
+								const isDisabled = !hasApiKey
+
+								return (
+									<label
+										key={p}
+										className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${isDisabled
+												? 'border-border bg-muted/20 opacity-50 cursor-not-allowed'
+												: isSelected
+													? 'border-primary bg-primary/5 shadow-sm cursor-pointer'
+													: 'border-border bg-muted/30 hover:bg-muted/50 cursor-pointer'
+											}`}
+									>
+										<input
+											type="radio"
+											className="sr-only"
+											name="aiProvider"
+											checked={isSelected}
+											onChange={() => !isDisabled && setAiProvider(p)}
+											disabled={isDisabled}
+										/>
+										<span className={`capitalize font-bold ${isDisabled ? 'text-muted-foreground' : ''}`}>{p}</span>
+										<span className="text-[10px] text-muted-foreground">
+											{p === 'openai' && 'GPT-4o mini'}
+											{p === 'anthropic' && 'Claude Sonnet 4'}
+											{p === 'google' && 'Gemini 2.0 Flash'}
+										</span>
+										{isDisabled && (
+											<span className="text-[9px] text-orange-500 font-medium">
+												{t('settings.apiKeyRequired', { defaultValue: 'API Key Required' })}
+											</span>
+										)}
+									</label>
+								)
+							})}
 						</div>
 					</div>
 

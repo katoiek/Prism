@@ -44,6 +44,7 @@ const resources = {
 				importBtn: 'Import Definition',
 				importing: 'Importing...',
 				endpoints: 'Endpoints',
+				version: 'Version',
 				noConnections: 'No connections found. Import an OpenAPI spec to get started.'
 			},
 			connSettings: {
@@ -152,6 +153,7 @@ const resources = {
 				importBtn: '定義をインポート',
 				importing: 'インポート中...',
 				endpoints: 'エンドポイント',
+				version: 'バージョン',
 				noConnections: '接続が見つかりません。OpenAPI定義をインポートして開始してください。'
 			},
 			connSettings: {
