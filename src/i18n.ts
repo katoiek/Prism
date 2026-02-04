@@ -45,7 +45,12 @@ const resources = {
 				importing: 'Importing...',
 				endpoints: 'Endpoints',
 				version: 'Version',
-				noConnections: 'No connections found. Import an OpenAPI spec to get started.'
+				noConnections: 'No connections found. Import an OpenAPI spec to get started.',
+				builtInApis: 'Built-in APIs',
+				builtInDescription: 'Select from pre-configured API definitions.',
+				selectApi: 'Select API',
+				selectPlaceholder: '-- Select an API --',
+				addBtn: 'Add Connection'
 			},
 			connSettings: {
 				authTitle: 'Authentication Settings',
@@ -154,7 +159,12 @@ const resources = {
 				importing: 'インポート中...',
 				endpoints: 'エンドポイント',
 				version: 'バージョン',
-				noConnections: '接続が見つかりません。OpenAPI定義をインポートして開始してください。'
+				noConnections: '接続が見つかりません。OpenAPI定義をインポートして開始してください。',
+				builtInApis: '組み込みAPI',
+				builtInDescription: '事前定義されたAPI定義から選択します。',
+				selectApi: 'APIを選択',
+				selectPlaceholder: '-- APIを選択 --',
+				addBtn: '接続を追加'
 			},
 			connSettings: {
 				authTitle: '認証設定',

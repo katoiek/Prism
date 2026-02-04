@@ -48,20 +48,54 @@ ipcMain.handle('read-file', async (_event, filePath) => {
 	}
 })
 
+// Read built-in spec file
+ipcMain.handle('read-builtin-spec', async (_event, fileName: string) => {
+	try {
+		// In development, specs are in src/specs
+		// In production, they're bundled in the app resources
+		let specsDir: string
+		if (app.isPackaged) {
+			specsDir = path.join(process.resourcesPath, 'specs')
+		} else {
+			specsDir = path.join(__dirname, '../src/specs')
+		}
+
+		const filePath = path.join(specsDir, fileName)
+		if (!fs.existsSync(filePath)) {
+			throw new Error(`Built-in spec not found: ${fileName}`)
+		}
+		return await fs.promises.readFile(filePath, 'utf-8')
+	} catch (err: any) {
+		throw new Error(`Failed to read built-in spec: ${err.message}`)
+	}
+})
+
 ipcMain.handle('parse-openapi', async (_event, source, type) => {
 	try {
 		let api: any;
+		let filePath = source;
 
-		// Validate file existence if local
-		if (type === 'file') {
-			if (!fs.existsSync(source)) {
-				throw new Error(`File not found: ${source}`)
+		// Handle built-in specs
+		if (type === 'builtin') {
+			let specsDir: string
+			if (app.isPackaged) {
+				specsDir = path.join(process.resourcesPath, 'specs')
+			} else {
+				specsDir = path.join(__dirname, '../src/specs')
+			}
+			filePath = path.join(specsDir, source)
+		}
+
+		// Validate file existence if local or built-in
+		if (type === 'file' || type === 'builtin') {
+			if (!fs.existsSync(filePath)) {
+				throw new Error(`File not found: ${filePath}`)
 			}
 		}
 
 		// SwaggerParser.dereference handles both File paths and URLs
 		// It also handles JSON and YAML automatically.
-		api = await SwaggerParser.dereference(source)
+		api = await SwaggerParser.dereference(filePath)
 
 		return api
 	} catch (err: any) {

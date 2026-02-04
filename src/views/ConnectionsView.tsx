@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, Trash2, Info, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, Trash2, Info, ChevronDown, ChevronUp, Package } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { parseOpenApi, type ParsedApi } from '@/lib/apiParser'
 import { useTranslation } from 'react-i18next'
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
 import { ConnectionSettings } from '@/components/ConnectionSettings'
+import { BUILT_IN_SPECS } from '@/specs'
 
 export function ConnectionsView() {
 	const { t } = useTranslation()
@@ -23,6 +24,8 @@ export function ConnectionsView() {
 	const [notionDetected, setNotionDetected] = useState(false)
 	const [detectedIcon, setDetectedIcon] = useState<string | null>(null)
 	const [expandedConnections, setExpandedConnections] = useState<Record<string, boolean>>({})
+	const [selectedBuiltIn, setSelectedBuiltIn] = useState<string>('')
+	const [isImportingBuiltIn, setIsImportingBuiltIn] = useState(false)
 
 	const toggleExpand = (id: string) => {
 		setExpandedConnections(prev => ({
@@ -52,6 +55,12 @@ export function ConnectionsView() {
 			} else if (titleLower.includes('notion') || contentString.includes('notion')) {
 				setDetectedIcon('https://www.google.com/s2/favicons?domain=notion.so&sz=128')
 				setNotionDetected(true)
+			} else if (titleLower.includes('box') || contentString.includes('box.com') || contentString.includes('api.box.com')) {
+				setDetectedIcon('https://www.google.com/s2/favicons?domain=box.com&sz=128')
+			} else if (titleLower.includes('kintone') || contentString.includes('kintone') || contentString.includes('cybozu')) {
+				setDetectedIcon('https://www.google.com/s2/favicons?domain=kintone.com&sz=128')
+			} else if (titleLower.includes('zoom') || contentString.includes('zoom.us') || contentString.includes('api.zoom.us')) {
+				setDetectedIcon('https://www.google.com/s2/favicons?domain=zoom.com&sz=128')
 			} else {
 				setDetectedIcon(null)
 			}
@@ -126,6 +135,55 @@ export function ConnectionsView() {
 		}
 	}
 
+	// Handle importing from built-in specs
+	const handleImportBuiltIn = async (specId: string) => {
+		if (!specId) return
+
+		const spec = BUILT_IN_SPECS.find(s => s.id === specId)
+		if (!spec) return
+
+		setErrorValue(null)
+		setIsImportingBuiltIn(true)
+		setSelectedBuiltIn(specId)
+
+		try {
+			// Parse the built-in spec directly through main process
+			const parsed: ParsedApi = await parseOpenApi(spec.fileName, 'builtin' as any)
+
+			const newConnectionId = crypto.randomUUID()
+			const isNotion = spec.id === 'notion'
+
+			addConnection({
+				id: newConnectionId,
+				name: spec.title,
+				type: 'file',
+				specUrlOrPath: `[Built-in] ${spec.fileName}`,
+				specContent: parsed,
+				authType: parsed.meta?.authType || 'none',
+				baseUrl: parsed.meta?.baseUrl || '',
+				authUrl: parsed.meta?.authUrl,
+				tokenUrl: parsed.meta?.tokenUrl,
+				scope: parsed.meta?.scope,
+				isNotion,
+				notionVersion: isNotion ? '2025-09-03' : undefined,
+				iconUrl: `https://www.google.com/s2/favicons?domain=${spec.iconDomain}&sz=128`,
+				apiVersion: parsed.version
+			})
+
+			// Auto-expand the new connection
+			setExpandedConnections(prev => ({
+				...prev,
+				[newConnectionId]: true
+			}))
+
+			setSelectedBuiltIn('')
+		} catch (err: any) {
+			setErrorValue(err.message || "Failed to import built-in spec")
+		} finally {
+			setIsImportingBuiltIn(false)
+		}
+	}
+
 	return (
 		<div className="h-full overflow-auto">
 			<div className="p-6 space-y-8">
@@ -133,6 +191,44 @@ export function ConnectionsView() {
 					<h2 className="text-3xl font-bold tracking-tight">{t('connections.title')}</h2>
 					<p className="text-muted-foreground">{t('connections.titleSubtitle', { defaultValue: 'Manage your API connections.' })}</p>
 				</div>
+
+				{/* Built-in API Selector */}
+				<Card>
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<Package className="w-5 h-5" />
+							{t('connections.builtInApis', { defaultValue: 'Built-in APIs' })}
+						</CardTitle>
+						<CardDescription>{t('connections.builtInDescription', { defaultValue: 'Select from pre-configured API definitions.' })}</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="flex gap-4 items-end">
+							<div className="flex-1 grid gap-2">
+								<label className="text-sm font-medium">{t('connections.selectApi', { defaultValue: 'Select API' })}</label>
+								<select
+									className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+									value={selectedBuiltIn}
+									onChange={e => setSelectedBuiltIn(e.target.value)}
+									disabled={isImportingBuiltIn}
+								>
+									<option value="">{t('connections.selectPlaceholder', { defaultValue: '-- Select an API --' })}</option>
+									{BUILT_IN_SPECS.map(spec => (
+										<option key={spec.id} value={spec.id}>
+											{spec.title} ({spec.version})
+										</option>
+									))}
+								</select>
+							</div>
+							<Button
+								onClick={() => handleImportBuiltIn(selectedBuiltIn)}
+								disabled={!selectedBuiltIn || isImportingBuiltIn}
+							>
+								{isImportingBuiltIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+								{isImportingBuiltIn ? t('connections.importing', { defaultValue: 'Importing...' }) : t('connections.addBtn', { defaultValue: 'Add Connection' })}
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
 
 				{/* Import Form */}
 				<Card>

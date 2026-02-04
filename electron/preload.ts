@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 	},
 
 	readFile: (path: string) => ipcRenderer.invoke('read-file', path),
+	readBuiltinSpec: (fileName: string) => ipcRenderer.invoke('read-builtin-spec', fileName),
 	fetchUrl: (url: string) => ipcRenderer.invoke('fetch-url', url),
 	parseOpenApi: (source: string, type: 'url' | 'file') => ipcRenderer.invoke('parse-openapi', source, type),
 	openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),

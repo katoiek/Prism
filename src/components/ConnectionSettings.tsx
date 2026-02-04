@@ -12,6 +12,10 @@ const OAUTH_PRESETS: Record<string, { authUrl: string; tokenUrl: string; scope?:
 		authUrl: 'https://login.wrike.com/oauth2/authorize/v4',
 		tokenUrl: 'https://login.wrike.com/oauth2/token',
 	},
+	box: {
+		authUrl: 'https://account.box.com/api/oauth2/authorize',
+		tokenUrl: 'https://api.box.com/oauth2/token',
+	},
 }
 
 function detectProvider(connection: Connection): string | null {
@@ -21,6 +25,9 @@ function detectProvider(connection: Connection): string | null {
 
 	if (name.includes('wrike') || baseUrl.includes('wrike.com') || specUrl.includes('wrike')) {
 		return 'wrike'
+	}
+	if (name.includes('box') || baseUrl.includes('box.com') || specUrl.includes('box')) {
+		return 'box'
 	}
 	return null
 }
