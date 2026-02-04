@@ -1,8 +1,10 @@
 # Prism
 
+[🇯🇵 日本語版はこちら](#prism-日本語)
+
 A modern desktop application for testing and exploring APIs using OpenAPI/Swagger specifications. Built with Electron, React, and TypeScript.
 
-![Prism Screenshot](public/icon.png)
+<img src="public/icon.png" alt="Prism" width="80" height="80">
 
 ## Features
 
@@ -60,6 +62,7 @@ MIT
 
 ---
 
+<a id="prism-日本語"></a>
 # Prism (日本語)
 
 OpenAPI/Swagger仕様を使用してAPIをテスト・探索するためのモダンなデスクトップアプリケーションです。Electron、React、TypeScriptで構築されています。
