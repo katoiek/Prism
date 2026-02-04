@@ -1,0 +1,235 @@
+import i18n from 'i18next'
+import { initReactI18next } from 'react-i18next'
+import LanguageDetector from 'i18next-browser-languagedetector'
+
+const resources = {
+	en: {
+		translation: {
+			sidebar: {
+				connections: 'Connections',
+				query: 'Query',
+				settings: 'Settings',
+				askAi: 'Ask AI',
+				searchEndpoints: 'Search endpoints...',
+				endpoints: 'Endpoints'
+			},
+			settings: {
+				title: 'Settings',
+				aiProvider: 'AI Assistant Provider',
+				apiKeys: 'API Keys',
+				language: 'Language',
+				english: 'English',
+				japanese: 'Japanese',
+				keysNote: 'Required for "Ask AI" and "Auto-fill with AI" features. Keys are stored locally.'
+			},
+			connections: {
+				analyzing: 'Analyzing definition...',
+				notionDetected: 'Notion connection detected. Notion-specific settings will be applied automatically.',
+				title: 'API Connections',
+				titleSubtitle: 'Manage your API connections.',
+				addNew: 'Add New Connection',
+				description: 'Import an OpenAPI/Swagger definition from a URL or local file.',
+				nameLabel: 'Name',
+				namePlaceholder: 'My SaaS API',
+				sourceType: 'Source Type',
+				urlType: 'URL',
+				fileType: 'File',
+				urlLabel: 'OpenAPI URL',
+				urlPlaceholder: 'https://api.example.com/openapi.json',
+				fileLabel: 'Local File',
+				filePlaceholder: 'Select a file...',
+				browse: 'Browse',
+				importUrl: 'Import from URL',
+				importFile: 'Import from File',
+				importBtn: 'Import Definition',
+				importing: 'Importing...',
+				endpoints: 'Endpoints',
+				noConnections: 'No connections found. Import an OpenAPI spec to get started.'
+			},
+			connSettings: {
+				authTitle: 'Authentication Settings',
+				isNotion: 'This is a Notion Connection',
+				notionVersion: 'Version:',
+				baseUrl: 'Base URL Override',
+				clientId: 'Client ID',
+				clientSecret: 'Client Secret',
+				authUrl: 'Authorization URL',
+				tokenUrl: 'Token URL',
+				scope: 'Scope',
+				apiToken: 'API Token (Permanent)',
+				apiTokenNote: 'If provided, this token will be used instead of OAuth2.',
+				callbackUrl: 'OAuth2 Callback URL',
+				callbackNote: 'Register this URL as Redirect URI in your SaaS settings.',
+				copy: 'Copy',
+				save: 'Save Changes',
+				connect: 'Connect',
+				connected: 'Connected'
+			},
+			query: {
+				endpoint: 'Endpoint',
+				method: 'Method',
+				execute: 'Execute',
+				response: 'Response',
+				status: 'Status',
+				fillAi: 'Auto-fill with AI',
+				table: 'Table',
+				json: 'JSON',
+				exportExcel: 'Export to Excel',
+				selectEndpointNote: 'Select an endpoint from the sidebar to begin.',
+				runRequestNote: 'Run a request to see the response here.',
+				params: 'Parameters',
+				pathParams: 'Path Parameters',
+				queryParams: 'Query Parameters',
+				headers: 'Headers',
+				noParams: 'No parameters required.',
+				requestBody: 'Request Body (JSON)',
+				running: 'Running...',
+				executeBtn: 'Execute Request',
+				aiAssistant: 'AI Assistant',
+				close: 'Close',
+				openAiFill: 'Open Auto-fill',
+				aiPromptPlaceholder: 'What do you want to do? (e.g. Find users named John)',
+				aiDescription: 'Describe your intent to automatically populate parameters.',
+				disconnect: 'Clear Token / Disconnect',
+				orchestratorTitle: 'AI Query Orchestrator',
+				orchestratorSubtitle: 'Using {{provider}}',
+				analyzing: 'Analyzing request...',
+				findingEndpoint: 'Finding the best endpoint...',
+				found: 'Found: {{path}}',
+				populatingParams: 'Populating parameters...',
+				ready: 'Ready!',
+				fillFailed: 'Could not fill parameters automatically.',
+				error: 'Error occurred during AI processing.',
+				orchestratorPlaceholder: "Describe what you want to do (e.g. 'Get all users with email ending in .com')",
+				orchestratorDescription: 'This will automatically select the SaaS, find the endpoint, and fill in the parameters for you.',
+				askAiBtn: 'Ask AI',
+				connecting: 'Connecting...',
+				connected: 'Connected',
+				connectBtn: 'Connect with OAuth',
+				oauthMissing: 'Missing OAuth configuration',
+				oauthFailed: 'OAuth failed'
+			}
+		}
+	},
+	ja: {
+		translation: {
+			sidebar: {
+				connections: '接続管理',
+				query: 'クエリ実行',
+				settings: '設定',
+				askAi: 'AIに相談',
+				searchEndpoints: 'エンドポイントを検索...',
+				endpoints: 'エンドポイント'
+			},
+			settings: {
+				title: '設定',
+				aiProvider: 'AIアシスタントプロバイダー',
+				apiKeys: 'APIキー',
+				language: '言語',
+				english: 'English',
+				japanese: '日本語',
+				keysNote: '「AIに相談」や「AIで自動入力」機能に必要です。キーはローカルにのみ保存されます。'
+			},
+			connections: {
+				analyzing: '定義ファイルを解析中...',
+				notionDetected: 'Notion接続が検出されました。Notion専用の設定が自動的に適用されます。',
+				title: 'API接続',
+				titleSubtitle: 'API接続を管理します。',
+				addNew: '新しい接続を追加',
+				description: 'OpenAPI/Swagger定義をURLまたはローカルファイルからインポートします。',
+				nameLabel: '名前',
+				namePlaceholder: 'SaaS名など',
+				sourceType: 'インポート元',
+				urlType: 'URL',
+				fileType: 'ファイル',
+				urlLabel: 'OpenAPI URL',
+				urlPlaceholder: 'https://api.example.com/openapi.json',
+				fileLabel: 'ローカルファイル',
+				filePlaceholder: 'ファイルを選択してください...',
+				browse: '参照',
+				importUrl: 'URLからインポート',
+				importFile: 'ファイルからインポート',
+				importBtn: '定義をインポート',
+				importing: 'インポート中...',
+				endpoints: 'エンドポイント',
+				noConnections: '接続が見つかりません。OpenAPI定義をインポートして開始してください。'
+			},
+			connSettings: {
+				authTitle: '認証設定',
+				isNotion: 'Notion接続として扱う',
+				notionVersion: 'バージョン:',
+				baseUrl: 'ベースURL（上書き）',
+				clientId: 'クライアントID',
+				clientSecret: 'クライアントシークレット',
+				authUrl: '認可URL',
+				tokenUrl: 'トークンURL',
+				scope: 'スコープ',
+				apiToken: 'APIトークン (永続的)',
+				apiTokenNote: '入力された場合、OAuth2の代わりにこのトークンが優先的に使用されます。',
+				callbackUrl: 'OAuth2コールバックURL',
+				callbackNote: 'SaaS側の設定画面で、このURLをリダイレクトURIとして登録してください。',
+				copy: 'コピー',
+				save: '変更を保存',
+				connect: '認証開始',
+				connected: '認証済み'
+			},
+			query: {
+				endpoint: 'エンドポイント',
+				method: 'メソッド',
+				execute: '実行',
+				response: 'レスポンス',
+				status: 'ステータス',
+				fillAi: 'AIで自動入力',
+				table: 'テーブル',
+				json: 'JSON',
+				exportExcel: 'Excelにエクスポート',
+				selectEndpointNote: 'サイドバーからエンドポイントを選択して開始してください。',
+				runRequestNote: 'リクエストを実行するとここにレスポンスが表示されます。',
+				params: 'パラメータ',
+				pathParams: 'パスパラメータ',
+				queryParams: 'クエリパラメータ',
+				headers: 'ヘッダー',
+				noParams: 'パラメータは不要です。',
+				requestBody: 'リクエストボディ (JSON)',
+				running: '実行中...',
+				executeBtn: 'リクエストを実行',
+				aiAssistant: 'AIアシスタント',
+				close: '閉じる',
+				openAiFill: '自動入力を開く',
+				aiPromptPlaceholder: 'やりたいことを入力してください (例: 名前がJohnのユーザーを探す)',
+				aiDescription: '言葉で指示を出すと、パラメータを自動で入力します。',
+				disconnect: 'トークン破棄 / 接続解除',
+				orchestratorTitle: 'AIクエリオーケストレーター',
+				orchestratorSubtitle: '{{provider}} を使用中',
+				analyzing: 'リクエストを分析中...',
+				findingEndpoint: '最適なエンドポイントを探索中...',
+				found: '発見: {{path}}',
+				populatingParams: 'パラメータを自動入力中...',
+				ready: '準備完了！',
+				fillFailed: 'パラメータの自動入力に失敗しました。',
+				error: 'AI処理中にエラーが発生しました。',
+				orchestratorPlaceholder: "やりたいことを説明してください (例: '末尾が.comのメールアドレスを持つ全ユーザーを取得')",
+				orchestratorDescription: 'SaaSの選択、エンドポイントの特定、パラメータの入力をすべてAIが自動で行います。',
+				askAiBtn: 'AIに任せる',
+				connecting: '接続中...',
+				connected: '接続済み',
+				connectBtn: 'OAuthで接続',
+				oauthMissing: 'OAuth設定が不足しています',
+				oauthFailed: 'OAuth認証に失敗しました'
+			}
+		}
+	}
+}
+
+i18n
+	.use(LanguageDetector)
+	.use(initReactI18next)
+	.init({
+		resources,
+		fallbackLng: 'en',
+		interpolation: {
+			escapeValue: false
+		}
+	})
+
+export default i18n
