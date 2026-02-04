@@ -44,7 +44,7 @@ async function callAi(
 			const response = await axios.post(
 				'https://api.anthropic.com/v1/messages',
 				{
-					model: 'claude-3-5-sonnet-20240620',
+					model: 'claude-sonnet-4-20250514',
 					max_tokens: 1024,
 					system: systemPrompt + (jsonMode ? " Respond ONLY with a valid JSON object." : ""),
 					messages: [
@@ -56,7 +56,7 @@ async function callAi(
 						'x-api-key': apiKey,
 						'anthropic-version': '2023-06-01',
 						'Content-Type': 'application/json',
-						'dangerouslyAllowBrowser': 'true' // In a browser environment
+						'anthropic-dangerous-direct-browser-access': 'true'
 					}
 				}
 			)
@@ -64,7 +64,7 @@ async function callAi(
 		} else if (provider === 'google') {
 			// Google Gemini
 			const response = await axios.post(
-				`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+				`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
 				{
 					contents: [{
 						parts: [{ text: `${systemPrompt}\n\nUser Question: ${userPrompt}` }]

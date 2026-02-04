@@ -88,8 +88,10 @@ export function ConnectionsView() {
 
 			const parsed: ParsedApi = await parseOpenApi(source, importType)
 
+			const newConnectionId = crypto.randomUUID()
+
 			addConnection({
-				id: crypto.randomUUID(),
+				id: newConnectionId,
 				name,
 				type: importType,
 				specUrlOrPath: source,
@@ -103,6 +105,12 @@ export function ConnectionsView() {
 				notionVersion: notionDetected ? '2025-09-03' : undefined,
 				iconUrl: detectedIcon || undefined
 			})
+
+			// Auto-expand the new connection
+			setExpandedConnections(prev => ({
+				...prev,
+				[newConnectionId]: true
+			}))
 
 			// Reset form
 			setName('')

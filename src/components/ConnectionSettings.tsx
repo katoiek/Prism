@@ -1,10 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Save, Check, Copy } from 'lucide-react'
 import { useAppStore, type Connection } from '@/store/appStore'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { ConnectButton } from '@/components/ConnectButton'
+
+// Known OAuth configurations for auto-detection
+const OAUTH_PRESETS: Record<string, { authUrl: string; tokenUrl: string; scope?: string }> = {
+	wrike: {
+		authUrl: 'https://login.wrike.com/oauth2/authorize/v4',
+		tokenUrl: 'https://login.wrike.com/oauth2/token',
+	},
+}
+
+function detectProvider(connection: Connection): string | null {
+	const name = connection.name?.toLowerCase() || ''
+	const baseUrl = connection.baseUrl?.toLowerCase() || ''
+	const specUrl = connection.specUrlOrPath?.toLowerCase() || ''
+
+	if (name.includes('wrike') || baseUrl.includes('wrike.com') || specUrl.includes('wrike')) {
+		return 'wrike'
+	}
+	return null
+}
 
 export function ConnectionSettings({ connection }: { connection: Connection }) {
 	const { t } = useTranslation()
@@ -19,6 +38,24 @@ export function ConnectionSettings({ connection }: { connection: Connection }) {
 	const [isNotion, setIsNotion] = useState(connection.isNotion || false)
 	const [notionVersion, setNotionVersion] = useState(connection.notionVersion || '2025-09-03')
 	const [copied, setCopied] = useState(false)
+
+	// Auto-detect provider and set default OAuth URLs
+	useEffect(() => {
+		const provider = detectProvider(connection)
+		if (provider && OAUTH_PRESETS[provider]) {
+			const preset = OAUTH_PRESETS[provider]
+			// Only set if current values are empty (allow manual override)
+			if (!authUrl && preset.authUrl) {
+				setAuthUrl(preset.authUrl)
+			}
+			if (!tokenUrl && preset.tokenUrl) {
+				setTokenUrl(preset.tokenUrl)
+			}
+			if (!scope && preset.scope) {
+				setScope(preset.scope)
+			}
+		}
+	}, [connection.id]) // Re-run when connection changes
 
 	const CALLBACK_URL = 'http://localhost:54321/callback'
 

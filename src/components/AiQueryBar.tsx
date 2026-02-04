@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Sparkles, Loader2, Search, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useAppStore } from '@/store/appStore'
 import { askAiForExplanation } from '@/lib/aiHelper'
 import { useTranslation } from 'react-i18next'
@@ -20,6 +19,15 @@ export function AiQueryBar() {
 	const [prompt, setPrompt] = useState('')
 	const [explanation, setExplanation] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)
+	const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+	// Auto-resize textarea
+	useEffect(() => {
+		if (textareaRef.current) {
+			textareaRef.current.style.height = 'auto'
+			textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
+		}
+	}, [prompt])
 
 	const handleAiQuery = async (e: React.FormEvent) => {
 		e.preventDefault()
@@ -68,19 +76,29 @@ export function AiQueryBar() {
 			</div>
 
 			<form onSubmit={handleAiQuery} className="group relative">
-				<Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-				<Input
+				<Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+				<textarea
+					ref={textareaRef}
 					placeholder="Ask how to use the APIs... (e.g. 'How do I create a new task in Wrike?')"
-					className="pl-10 pr-24 h-10 text-sm bg-background/50 border-primary/10 focus:border-primary/40 focus:ring-primary/20"
+					className="w-full pl-10 pr-28 py-2.5 text-sm bg-background/50 border border-primary/10 rounded-md focus:border-primary/40 focus:ring-1 focus:ring-primary/20 focus:outline-none resize-none min-h-[40px] max-h-[200px] overflow-y-auto"
 					value={prompt}
 					onChange={(e) => setPrompt(e.target.value)}
 					disabled={isLoading}
+					rows={1}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter' && !e.shiftKey) {
+							e.preventDefault()
+							if (prompt.trim()) {
+								handleAiQuery(e)
+							}
+						}
+					}}
 				/>
-				<div className="absolute right-1 top-1 bottom-1 flex gap-1">
+				<div className="absolute right-1 top-1 flex gap-1">
 					<Button
 						type="submit"
 						size="sm"
-						className="h-full px-3 text-xs gap-1"
+						className="h-8 px-3 text-xs gap-1"
 						disabled={isLoading || !prompt.trim()}
 					>
 						{isLoading ? (
@@ -88,7 +106,7 @@ export function AiQueryBar() {
 						) : (
 							<>
 								<Sparkles className="w-3 h-3 fill-current" />
-								<span>Ask Assistant</span>
+								<span>Ask</span>
 							</>
 						)}
 					</Button>
