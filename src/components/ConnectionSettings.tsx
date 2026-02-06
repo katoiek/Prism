@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { ConnectButton } from '@/components/ConnectButton'
 
 // Known OAuth configurations for auto-detection
-const OAUTH_PRESETS: Record<string, { authUrl: string; tokenUrl: string; scope?: string }> = {
+const OAUTH_PRESETS: Record<string, { authUrl: string; tokenUrl: string; scope?: string; extraParams?: string }> = {
 	wrike: {
 		authUrl: 'https://login.wrike.com/oauth2/authorize/v4',
 		tokenUrl: 'https://login.wrike.com/oauth2/token',
@@ -15,6 +15,11 @@ const OAUTH_PRESETS: Record<string, { authUrl: string; tokenUrl: string; scope?:
 	box: {
 		authUrl: 'https://account.box.com/api/oauth2/authorize',
 		tokenUrl: 'https://api.box.com/oauth2/token',
+	},
+	freee: {
+		authUrl: 'https://accounts.secure.freee.co.jp/public_api/authorize',
+		tokenUrl: 'https://accounts.secure.freee.co.jp/public_api/token',
+		extraParams: 'prompt=select_company',
 	},
 }
 
@@ -28,6 +33,9 @@ function detectProvider(connection: Connection): string | null {
 	}
 	if (name.includes('box') || baseUrl.includes('box.com') || specUrl.includes('box')) {
 		return 'box'
+	}
+	if (name.includes('freee') || baseUrl.includes('freee.co.jp') || specUrl.includes('freee')) {
+		return 'freee'
 	}
 	return null
 }
@@ -106,6 +114,25 @@ export function ConnectionSettings({ connection }: { connection: Connection }) {
 								placeholder="2025-09-03"
 								className="h-8 w-32"
 							/>
+						</div>
+					)}
+
+					{/* Freee Company ID display */}
+					{detectProvider(connection) === 'freee' && (
+						<div className="flex items-center gap-2 col-span-full mb-2">
+							<label className="text-sm font-medium whitespace-nowrap">{t('connSettings.companyId', { defaultValue: 'Company ID:' })}</label>
+							<Input
+								value={connection.companyId || ''}
+								readOnly
+								placeholder={t('connSettings.companyIdPlaceholder', { defaultValue: 'Retrieved after OAuth login' })}
+								className="h-8 w-48 bg-muted"
+							/>
+							{connection.companyId && (
+								<span className="text-xs text-green-600 flex items-center gap-1">
+									<Check className="w-3 h-3" />
+									{t('connSettings.companyIdSet', { defaultValue: 'Set' })}
+								</span>
+							)}
 						</div>
 					)}
 

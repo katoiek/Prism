@@ -61,6 +61,8 @@ export function ConnectionsView() {
 				setDetectedIcon('https://www.google.com/s2/favicons?domain=kintone.com&sz=128')
 			} else if (titleLower.includes('zoom') || contentString.includes('zoom.us') || contentString.includes('api.zoom.us')) {
 				setDetectedIcon('https://www.google.com/s2/favicons?domain=zoom.com&sz=128')
+			} else if (titleLower.includes('freee') || contentString.includes('freee.co.jp') || contentString.includes('api.freee.co.jp')) {
+				setDetectedIcon('https://www.google.com/s2/favicons?domain=freee.co.jp&sz=128')
 			} else {
 				setDetectedIcon(null)
 			}

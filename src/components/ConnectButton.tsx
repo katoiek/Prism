@@ -13,6 +13,7 @@ export function ConnectButton({ connection }: { connection: Connection }) {
 	const isConnected = !!connection.accessToken
 
 	const handleConnect = async () => {
+		if (isLoading || isConnected) return
 		if (!connection.authUrl || !connection.tokenUrl || !connection.clientId || !connection.clientSecret) {
 			setError(t('query.oauthMissing'))
 			return
@@ -21,6 +22,11 @@ export function ConnectButton({ connection }: { connection: Connection }) {
 		setIsLoading(true)
 		setError(null)
 
+		// Detect Freee for extra params
+		const isFreee = connection.name?.toLowerCase().includes('freee') ||
+			connection.baseUrl?.toLowerCase().includes('freee.co.jp') ||
+			connection.specUrlOrPath?.toLowerCase().includes('freee')
+
 		try {
 			const tokenData = await window.ipcRenderer.startOAuth2({
 				authUrl: connection.authUrl,
@@ -28,15 +34,24 @@ export function ConnectButton({ connection }: { connection: Connection }) {
 				clientId: connection.clientId,
 				clientSecret: connection.clientSecret,
 				scope: connection.scope,
-				isNotion: connection.isNotion
+				isNotion: connection.isNotion,
+				extraParams: isFreee ? 'prompt=select_company' : undefined
 			})
 
-			updateConnection(connection.id, {
+			// Build update object
+			const updateData: Partial<Connection> = {
 				accessToken: tokenData.access_token,
 				refreshToken: tokenData.refresh_token,
 				// Calculate expiry if provided (usually, 'expires_in' seconds)
 				tokenExpiresAt: tokenData.expires_in ? Date.now() + (tokenData.expires_in * 1000) : undefined
-			})
+			}
+
+			// For Freee: save company_id from token response
+			if (tokenData.company_id) {
+				updateData.companyId = String(tokenData.company_id)
+			}
+
+			updateConnection(connection.id, updateData)
 		} catch (err: any) {
 			setError(err.message || t('query.oauthFailed'))
 		} finally {

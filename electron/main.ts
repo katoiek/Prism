@@ -133,13 +133,16 @@ import { shell } from 'electron'
 import type { Server } from 'http'
 
 // OAuth2 Handler
+let activeOAuthServer: Server | null = null;
+
 ipcMain.handle('start-oauth2', async (__, config: {
 	authUrl: string,
 	tokenUrl: string,
 	clientId: string,
 	clientSecret: string,
 	scope: string,
-	isNotion?: boolean
+	isNotion?: boolean,
+	extraParams?: string
 }) => {
 	return new Promise((resolve, reject) => {
 		const app = express()
@@ -147,65 +150,89 @@ ipcMain.handle('start-oauth2', async (__, config: {
 		const PORT = 54321; // Hardcoded convenient port for now. Make sure redirect URI matches this.
 		const redirectUri = `http://localhost:${PORT}/callback`;
 
+		// Close any existing server before starting a new one
+		if (activeOAuthServer) {
+			console.log("[OAuth2] Closing existing active server.");
+			activeOAuthServer.close();
+			activeOAuthServer = null;
+		}
+
+		let isExchanging = false;
 		app.get('/callback', async (req, res) => {
 			const code = req.query.code as string;
 
 			if (code) {
+				if (isExchanging) {
+					console.log("[OAuth2] Callback already processing, ignoring duplicate request.");
+					return;
+				}
+				isExchanging = true;
 				res.send("Authentication successful! You can close this window now.")
 
 				// Exchange code for token
 				try {
-					let tokenResponse;
+					let tokenData;
+					const headers: any = { 'Content-Type': 'application/x-www-form-urlencoded' };
+					let body: any;
+
 					if (config.isNotion) {
 						// Notion specific token exchange
 						const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString('base64');
-						tokenResponse = await fetch(config.tokenUrl, {
-							method: 'POST',
-							headers: {
-								'Content-Type': 'application/json',
-								'Authorization': `Basic ${basicAuth}`
-							},
-							body: JSON.stringify({
-								grant_type: 'authorization_code',
-								code: code,
-								redirect_uri: redirectUri
-							})
-						})
+						headers['Authorization'] = `Basic ${basicAuth}`;
+						headers['Content-Type'] = 'application/json';
+						body = {
+							grant_type: 'authorization_code',
+							code: code,
+							redirect_uri: redirectUri
+						};
 					} else {
 						// Generic OAuth2
-						tokenResponse = await fetch(config.tokenUrl, {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-							body: new URLSearchParams({
-								grant_type: 'authorization_code',
-								client_id: config.clientId,
-								client_secret: config.clientSecret,
-								redirect_uri: redirectUri,
-								code: code
-							})
-						})
+						body = new URLSearchParams({
+							grant_type: 'authorization_code',
+							client_id: config.clientId,
+							client_secret: config.clientSecret,
+							redirect_uri: redirectUri,
+							code: code
+						}).toString();
 					}
 
-					const tokenData = await tokenResponse.json()
+					const client = axios.create();
+					const response = await client({
+						method: 'POST',
+						url: config.tokenUrl,
+						headers,
+						data: body,
+						httpsAgent: new https.Agent({
+							rejectUnauthorized: false
+						}),
+						timeout: 10000
+					});
+
+					tokenData = response.data;
 
 					if (tokenData.error) {
+						console.error('[OAuth2] Token response has error:', tokenData);
 						reject(new Error(tokenData.error_description || tokenData.error))
 					} else {
 						resolve(tokenData)
 					}
 				} catch (err: any) {
-					reject(new Error("Failed to exchange token: " + err.message))
+					const errorMsg = err.response?.data?.error_description || err.response?.data?.message || err.message;
+					reject(new Error("Failed to exchange token: " + errorMsg))
 				} finally {
 					server.close()
+					if (activeOAuthServer === server) activeOAuthServer = null;
 				}
 			} else {
 				res.send("Authentication failed: No code received.")
 				reject(new Error("No code received"))
 				server.close()
+				if (activeOAuthServer === server) activeOAuthServer = null;
 			}
 		});
 
 		server = app.listen(PORT, () => {
+			activeOAuthServer = server;
 
 			// Construct Auth URL
 			// Assuming standard OAuth2 query params
@@ -216,7 +243,11 @@ ipcMain.handle('start-oauth2', async (__, config: {
 				scope: config.scope || ''
 			})
 
-			const fullAuthUrl = `${config.authUrl}?${params.toString()}`
+			// Append extra params if provided (e.g., prompt=select_company for Freee)
+			let fullAuthUrl = `${config.authUrl}?${params.toString()}`
+			if (config.extraParams) {
+				fullAuthUrl += `&${config.extraParams}`
+			}
 			shell.openExternal(fullAuthUrl)
 		})
 
@@ -266,7 +297,8 @@ ipcMain.handle('api-request', async (_event, config: {
 	data?: any
 }) => {
 	try {
-		const response = await axios({
+		const client = axios.create();
+		const response = await client({
 			method: config.method,
 			url: config.url,
 			headers: config.headers,
@@ -275,7 +307,8 @@ ipcMain.handle('api-request', async (_event, config: {
 			validateStatus: () => true, // Don't throw on 4xx/5xx
 			httpsAgent: new https.Agent({
 				rejectUnauthorized: false
-			})
+			}),
+			timeout: 30000 // 30s for API requests
 		})
 
 		return {

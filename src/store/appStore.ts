@@ -28,6 +28,7 @@ export interface Connection {
 	notionVersion?: string
 	iconUrl?: string
 	apiVersion?: string // Parsed from OpenAPI spec info.version
+	companyId?: string // For Freee API - retrieved from OAuth token response
 }
 
 interface AppState {

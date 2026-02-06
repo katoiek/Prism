@@ -26,6 +26,41 @@ export const BUILT_IN_SPECS: BuiltInSpec[] = [
 		iconDomain: 'clickup.com'
 	},
 	{
+		id: 'freee-accounting',
+		title: 'freee会計',
+		version: '1.0',
+		fileName: 'freee accounting openapi v2020.json',
+		iconDomain: 'freee.co.jp'
+	},
+	{
+		id: 'freee-hr',
+		title: 'freee人事労務',
+		version: '2022-02-01',
+		fileName: 'freee hr openapi v2020.json',
+		iconDomain: 'freee.co.jp'
+	},
+	{
+		id: 'freee-invoice',
+		title: 'freee請求書',
+		version: '1',
+		fileName: 'freee invoice openapi.yml',
+		iconDomain: 'freee.co.jp'
+	},
+	{
+		id: 'freee-pm',
+		title: 'freeeプロジェクト管理',
+		version: '1.1.0',
+		fileName: 'freee pm openapi.yml',
+		iconDomain: 'freee.co.jp'
+	},
+	{
+		id: 'freee-sm',
+		title: 'freee販売管理',
+		version: '2025-11-17',
+		fileName: 'freee sm openapi.yml',
+		iconDomain: 'freee.co.jp'
+	},
+	{
 		id: 'wrike',
 		title: 'Wrike',
 		version: '4.0',

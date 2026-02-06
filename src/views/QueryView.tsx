@@ -30,7 +30,12 @@ export function QueryView() {
 	)
 
 	const handleExecute = async (formData: { params: Record<string, string>, body: string }) => {
-		if (!connection || !endpoint) return
+		// Always get the LATEST connection object from store to avoid closure staleness
+		const latestConnection = useAppStore.getState().connections.find(c => c.id === selectedConnectionId)
+		if (!latestConnection || !endpoint) {
+			return
+		}
+		const connection = latestConnection; // Alias for backward compatibility in this function
 
 		setIsLoading(true)
 		setError(null)
@@ -52,6 +57,12 @@ export function QueryView() {
 					headers[p.name] = value
 				}
 			})
+
+			// 1.1 Add mandatory company_id for Freee if not manually entered
+			const isFreee = connection.baseUrl?.includes('freee.co.jp') || connection.name.toLowerCase().includes('freee')
+			if (isFreee && connection.companyId && !queryParams['company_id']) {
+				queryParams['company_id'] = connection.companyId
+			}
 
 			// 2. Add Auth Header
 			const token = connection.apiToken || connection.accessToken
