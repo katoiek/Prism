@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { type ParsedApi } from '@/lib/apiParser'
+import i18n from '@/i18n' // Added this import
 
 export type View = 'connections' | 'query' | 'settings'
 
@@ -119,7 +120,7 @@ export const useAppStore = create<AppState>()(
 			},
 			aiProvider: 'openai',
 			setAiProvider: (provider) => set({ aiProvider: provider }),
-			language: 'en',
+			language: i18n.language || 'en',
 			setLanguage: (lang) => set({ language: lang }),
 			refreshToken: async (id) => {
 				const state = useAppStore.getState()
