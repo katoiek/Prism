@@ -75,6 +75,16 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "src/specs",
+        "to": "specs",
+        "filter": [
+          "**/*",
+          "!index.ts"
+        ]
+      }
+    ],
     "mac": {
       "icon": "build/icon.icns",
       "target": [
