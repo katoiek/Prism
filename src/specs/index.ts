@@ -36,7 +36,7 @@ export const BUILT_IN_SPECS: BuiltInSpec[] = [
 		id: 'freee-hr',
 		title: 'freee人事労務',
 		version: '2022-02-01',
-		fileName: 'freee hr openapi v2020.json',
+		fileName: 'freee hr openapi v2022.json',
 		iconDomain: 'freee.co.jp'
 	},
 	{
