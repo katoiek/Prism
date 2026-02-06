@@ -71,6 +71,13 @@
     "directories": {
       "output": "release"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "katoiek",
+        "repo": "Prism"
+      }
+    ],
     "files": [
       "dist/**/*",
       "dist-electron/**/*"
@@ -94,7 +101,12 @@
     },
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.ico"
     },
