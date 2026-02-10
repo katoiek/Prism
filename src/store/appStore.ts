@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { type ParsedApi } from '@/lib/apiParser'
+import i18n from '@/i18n' // Added this import
 
 export type View = 'connections' | 'query' | 'settings'
 
@@ -86,8 +87,8 @@ export const useAppStore = create<AppState>()(
 				if (apiToken !== undefined) secrets.apiToken = apiToken
 
 				if (Object.keys(secrets).length > 0) {
-					console.log(`[Store] Syncing secrets for connection ${id} to secure storage...`)
-						; (window.ipcRenderer as any).setConnectionSecrets(id, secrets)
+
+					; (window.ipcRenderer as any).setConnectionSecrets(id, secrets)
 				}
 
 				set((state) => ({
@@ -95,31 +96,31 @@ export const useAppStore = create<AppState>()(
 				}))
 			},
 			removeConnection: (id) => {
-				console.log(`[Store] Deleting secrets for connection ${id} from secure storage...`)
-					; (window.ipcRenderer as any).deleteConnectionSecrets(id)
+
+				; (window.ipcRenderer as any).deleteConnectionSecrets(id)
 				set((state) => ({ connections: state.connections.filter((c) => c.id !== id) }))
 			},
 			openaiApiKey: '',
 			setOpenaiApiKey: (key) => {
-				console.log('[Store] Syncing OpenAI API key to secure storage...')
-					; (window.ipcRenderer as any).setApiKey('openai', key)
+
+				; (window.ipcRenderer as any).setApiKey('openai', key)
 				set({ openaiApiKey: key })
 			},
 			anthropicApiKey: '',
 			setAnthropicApiKey: (key) => {
-				console.log('[Store] Syncing Anthropic API key to secure storage...')
-					; (window.ipcRenderer as any).setApiKey('anthropic', key)
+
+				; (window.ipcRenderer as any).setApiKey('anthropic', key)
 				set({ anthropicApiKey: key })
 			},
 			googleApiKey: '',
 			setGoogleApiKey: (key) => {
-				console.log('[Store] Syncing Google API key to secure storage...')
-					; (window.ipcRenderer as any).setApiKey('google', key)
+
+				; (window.ipcRenderer as any).setApiKey('google', key)
 				set({ googleApiKey: key })
 			},
 			aiProvider: 'openai',
 			setAiProvider: (provider) => set({ aiProvider: provider }),
-			language: 'en',
+			language: i18n.language || 'en',
 			setLanguage: (lang) => set({ language: lang }),
 			refreshToken: async (id) => {
 				const state = useAppStore.getState()
@@ -186,7 +187,7 @@ export const useAppStore = create<AppState>()(
 
 				// Migration and secrets loading logic
 				const migrateAndLoad = async () => {
-					console.log('[Store] Checking for migration and loading secrets...')
+
 
 					// 1. Migrate and Load Connection Secrets
 					const newConnections = [...state.connections]
@@ -197,7 +198,7 @@ export const useAppStore = create<AppState>()(
 
 						// Migration: Move secrets out of state (localStorage) to secure store
 						if (conn.clientSecret || conn.clientId || conn.accessToken || conn.refreshToken || conn.apiToken) {
-							console.log(`[Store] Migrating secrets for connection: ${conn.name}`)
+
 							await (window.ipcRenderer as any).setConnectionSecrets(conn.id, {
 								clientSecret: conn.clientSecret,
 								clientId: conn.clientId,
@@ -220,19 +221,14 @@ export const useAppStore = create<AppState>()(
 						// Loading: Fetch secrets from secure store into memory state
 						const secrets = await (window.ipcRenderer as any).getConnectionSecrets(conn.id)
 						if (secrets && Object.keys(secrets).length > 0) {
-							console.log(`[Store] Loaded secure secrets for: ${conn.name}`, {
-								hasAccessToken: !!secrets.accessToken,
-								hasApiToken: !!secrets.apiToken,
-								hasClientSecret: !!secrets.clientSecret,
-								hasClientId: !!secrets.clientId
-							})
+
 							newConnections[i] = {
 								...newConnections[i],
 								...secrets
 							}
 							hasChanges = true
 						} else {
-							console.log(`[Store] No secure secrets found for: ${conn.name}`)
+
 						}
 					}
 
@@ -241,7 +237,7 @@ export const useAppStore = create<AppState>()(
 					let keysLoaded = false
 
 					if (state.openaiApiKey || state.anthropicApiKey || state.googleApiKey) {
-						console.log('[Store] Migrating API keys...')
+
 						if (state.openaiApiKey) await (window.ipcRenderer as any).setApiKey('openai', state.openaiApiKey)
 						if (state.anthropicApiKey) await (window.ipcRenderer as any).setApiKey('anthropic', state.anthropicApiKey)
 						if (state.googleApiKey) await (window.ipcRenderer as any).setApiKey('google', state.googleApiKey)
@@ -257,7 +253,7 @@ export const useAppStore = create<AppState>()(
 					// Load API Keys from secure store
 					const secureApiKeys = await (window.ipcRenderer as any).getApiKeys()
 					if (Object.keys(secureApiKeys).length > 0) {
-						console.log('[Store] Loaded secure API keys.')
+
 						apiKeys = {
 							...apiKeys,
 							openaiApiKey: secureApiKeys.openai,
@@ -274,7 +270,7 @@ export const useAppStore = create<AppState>()(
 						})
 					}
 
-					console.log('[Store] Initialization complete.')
+
 				}
 
 				migrateAndLoad()

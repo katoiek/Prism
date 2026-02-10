@@ -1,4 +1,4 @@
-import { LayoutDashboard, Database, Settings, ChevronDown, ChevronRight, Globe, Search, X, Plug } from 'lucide-react'
+import { LayoutDashboard, Settings, ChevronDown, ChevronRight, Globe, Search, X, Plug } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { useAppStore, type View } from '@/store/appStore'
