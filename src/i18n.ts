@@ -113,7 +113,9 @@ const resources = {
 				connected: 'Connected',
 				connectBtn: 'Connect with OAuth',
 				oauthMissing: 'Missing OAuth configuration',
-				oauthFailed: 'OAuth failed'
+				oauthFailed: 'OAuth failed',
+				copied: 'Copied!',
+				copy: 'Copy'
 			}
 		}
 	},
@@ -227,7 +229,9 @@ const resources = {
 				connected: '接続済み',
 				connectBtn: 'OAuthで接続',
 				oauthMissing: 'OAuth設定が不足しています',
-				oauthFailed: 'OAuth認証に失敗しました'
+				oauthFailed: 'OAuth認証に失敗しました',
+				copied: 'コピーしました',
+				copy: 'コピー'
 			}
 		}
 	}
