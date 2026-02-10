@@ -4,9 +4,17 @@ import { QueryView } from '@/views/QueryView'
 import { SettingsView } from '@/views/SettingsView'
 import { useAppStore } from '@/store/appStore'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
+import { useEffect } from 'react'
+import i18n from '@/i18n'
 
 function App() {
-  const { activeView } = useAppStore()
+  const { activeView, language } = useAppStore()
+
+  useEffect(() => {
+    if (language && i18n.language !== language) {
+      i18n.changeLanguage(language)
+    }
+  }, [language])
 
   return (
     <div className="h-screen bg-background text-foreground overflow-hidden">
