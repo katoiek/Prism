@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
 	ModuleRegistry,
@@ -8,8 +8,10 @@ import {
 	DateFilterModule,
 	PaginationModule,
 	ValidationModule,
-	type ColDef
+	type ColDef,
+	type CellClickedEvent
 } from 'ag-grid-community'
+import { useTranslation } from 'react-i18next'
 
 // AG Grid styles (v35 style imports)
 import 'ag-grid-community/styles/ag-grid.css'
@@ -32,6 +34,8 @@ interface ResponseGridProps {
 }
 
 export function ResponseGrid({ data }: ResponseGridProps) {
+	const { t } = useTranslation()
+	const [copiedToast, setCopiedToast] = useState(false)
 	const rawArray = useMemo(() => extractDataArray(data), [data])
 
 	// Robust Flattening: Always flatten objects to ensure consistent keys
@@ -41,6 +45,20 @@ export function ResponseGrid({ data }: ResponseGridProps) {
 			return flattenObject(item)
 		})
 	}, [rawArray])
+
+	const handleCellClicked = useCallback((event: CellClickedEvent) => {
+		// Skip row number column
+		if (event.colDef.headerName === '#') return
+
+		const value = event.value
+		if (value == null) return
+
+		const text = typeof value === 'object' ? JSON.stringify(value) : String(value)
+		navigator.clipboard.writeText(text).then(() => {
+			setCopiedToast(true)
+			setTimeout(() => setCopiedToast(false), 1500)
+		})
+	}, [])
 
 	const columnDefs = useMemo<ColDef[]>(() => {
 		if (rowData.length === 0) return []
@@ -56,7 +74,8 @@ export function ResponseGrid({ data }: ResponseGridProps) {
 			sortable: true,
 			filter: true,
 			resizable: true,
-			tooltipField: key
+			tooltipField: key,
+			cellStyle: { cursor: 'pointer' }
 		}))
 
 		// Add row number column at the start
@@ -81,7 +100,7 @@ export function ResponseGrid({ data }: ResponseGridProps) {
 	}), [])
 
 	return (
-		<div className="h-full w-full overflow-hidden p-4 min-w-0">
+		<div className="h-full w-full overflow-hidden p-4 min-w-0 relative">
 			<div className="ag-theme-quartz-dark h-full w-full min-w-0">
 				<AgGridReact
 					rowData={rowData}
@@ -90,8 +109,14 @@ export function ResponseGrid({ data }: ResponseGridProps) {
 					pagination={true}
 					paginationPageSize={100}
 					paginationPageSizeSelector={[100, 500, 1000]}
+					onCellClicked={handleCellClicked}
 				/>
 			</div>
+			{copiedToast && (
+				<div className="absolute top-6 right-6 bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-md shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+					{t('query.copied', { defaultValue: 'Copied!' })}
+				</div>
+			)}
 		</div>
 	)
 }
