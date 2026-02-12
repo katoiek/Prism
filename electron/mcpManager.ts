@@ -178,6 +178,32 @@ export async function disconnectAll(): Promise<void> {
 	await Promise.all(ids.map(id => disconnectServer(id)))
 }
 
+export function listConnectedServerIds(): string[] {
+	return Array.from(servers.entries())
+		.filter(([_, s]) => s.status === 'connected')
+		.map(([id]) => id)
+}
+
+export async function listAllTools(): Promise<Array<{ serverId: string; serverName: string; tool: any }>> {
+	const connectedIds = listConnectedServerIds()
+	const results: Array<{ serverId: string; serverName: string; tool: any }> = []
+
+	for (const id of connectedIds) {
+		try {
+			const managed = servers.get(id)
+			if (!managed) continue
+			const result = await managed.client.listTools()
+			for (const tool of result.tools) {
+				results.push({ serverId: id, serverName: managed.config.name, tool })
+			}
+		} catch {
+			// Server may not support tools, skip
+		}
+	}
+
+	return results
+}
+
 function getServer(id: string): ManagedServer {
 	const managed = servers.get(id)
 	if (!managed) throw new Error(`MCP server not found: ${id}`)

@@ -9,6 +9,418 @@ interface AiHelperConfig {
 	apiKey: string
 }
 
+// ---- Chat message types for multi-turn conversation ----
+
+export interface ChatMessage {
+	role: 'user' | 'assistant' | 'system' | 'tool'
+	content: string
+	// For assistant messages with tool calls
+	toolCalls?: ToolCall[]
+	// For tool result messages
+	toolCallId?: string
+	toolName?: string
+}
+
+export interface ToolCall {
+	id: string
+	name: string
+	arguments: Record<string, unknown>
+	// Filled after execution
+	result?: any
+	serverId?: string
+}
+
+export interface McpToolInfo {
+	serverId: string
+	serverName: string
+	tool: {
+		name: string
+		description?: string
+		inputSchema?: any
+	}
+}
+
+// ---- Convert MCP tools to provider-specific formats ----
+
+function convertToOpenAITools(mcpTools: McpToolInfo[]) {
+	return mcpTools.map(t => ({
+		type: 'function' as const,
+		function: {
+			name: `${t.serverName}__${t.tool.name}`,
+			description: t.tool.description || t.tool.name,
+			parameters: t.tool.inputSchema || { type: 'object', properties: {} }
+		}
+	}))
+}
+
+function convertToAnthropicTools(mcpTools: McpToolInfo[]) {
+	return mcpTools.map(t => ({
+		name: `${t.serverName}__${t.tool.name}`,
+		description: t.tool.description || t.tool.name,
+		input_schema: t.tool.inputSchema || { type: 'object', properties: {} }
+	}))
+}
+
+function convertToGeminiTools(mcpTools: McpToolInfo[]) {
+	return [{
+		functionDeclarations: mcpTools.map(t => {
+			// Gemini doesn't support additionalProperties in schema
+			const schema = { ...(t.tool.inputSchema || { type: 'object', properties: {} }) }
+			delete schema.additionalProperties
+			delete schema.$schema
+			return {
+				name: `${t.serverName}__${t.tool.name}`,
+				description: t.tool.description || t.tool.name,
+				parameters: schema
+			}
+		})
+	}]
+}
+
+// Resolve prefixed tool name back to serverId + toolName
+function resolveToolName(prefixedName: string, mcpTools: McpToolInfo[]): { serverId: string; toolName: string } | null {
+	for (const t of mcpTools) {
+		const prefix = `${t.serverName}__${t.tool.name}`
+		if (prefix === prefixedName) {
+			return { serverId: t.serverId, toolName: t.tool.name }
+		}
+	}
+	return null
+}
+
+// ---- Multi-turn chat with Function Calling ----
+
+export interface ChatWithToolsResult {
+	messages: ChatMessage[]
+	// Final text response
+	response: string
+}
+
+export async function chatWithTools(
+	config: AiHelperConfig,
+	messages: ChatMessage[],
+	mcpTools: McpToolInfo[],
+	language: string = 'en',
+	onToolCall?: (toolName: string, args: Record<string, unknown>) => void,
+	onToolResult?: (toolName: string, result: any) => void
+): Promise<ChatWithToolsResult> {
+	const { provider, apiKey } = config
+	if (!apiKey) return { messages, response: 'API key is not set.' }
+
+	const langName = language === 'ja' ? 'Japanese' : 'English'
+	const systemMessage = `You are a helpful assistant that can use tools to fetch and manipulate data from connected services. When the user asks about their data, use the available tools to get real information. Always respond in ${langName}. If a tool call fails, explain the error and suggest what the user can do.`
+
+	const MAX_TOOL_ROUNDS = 5
+	let currentMessages = [...messages]
+	let round = 0
+
+	while (round < MAX_TOOL_ROUNDS) {
+		round++
+
+		let result: { content: string; toolCalls: ToolCall[] } | null = null
+
+		try {
+			if (provider === 'openai') {
+				result = await callOpenAIWithTools(apiKey, systemMessage, currentMessages, mcpTools)
+			} else if (provider === 'anthropic') {
+				result = await callAnthropicWithTools(apiKey, systemMessage, currentMessages, mcpTools)
+			} else if (provider === 'google') {
+				result = await callGeminiWithTools(apiKey, systemMessage, currentMessages, mcpTools)
+			}
+		} catch (error: any) {
+			console.error(`AI Request failed (${provider}):`, error)
+			return {
+				messages: currentMessages,
+				response: `AI request failed: ${error.message}`
+			}
+		}
+
+		if (!result) {
+			return { messages: currentMessages, response: 'Failed to get response from AI.' }
+		}
+
+		// If no tool calls, return the text response
+		if (!result.toolCalls || result.toolCalls.length === 0) {
+			const assistantMsg: ChatMessage = { role: 'assistant', content: result.content }
+			currentMessages.push(assistantMsg)
+			return { messages: currentMessages, response: result.content }
+		}
+
+		// Add assistant message with tool calls
+		const assistantMsg: ChatMessage = {
+			role: 'assistant',
+			content: result.content || '',
+			toolCalls: result.toolCalls
+		}
+		currentMessages.push(assistantMsg)
+
+		// Execute each tool call via MCP
+		for (const tc of result.toolCalls) {
+			const resolved = resolveToolName(tc.name, mcpTools)
+			if (!resolved) {
+				const toolResultMsg: ChatMessage = {
+					role: 'tool',
+					content: JSON.stringify({ error: `Unknown tool: ${tc.name}` }),
+					toolCallId: tc.id,
+					toolName: tc.name
+				}
+				currentMessages.push(toolResultMsg)
+				continue
+			}
+
+			tc.serverId = resolved.serverId
+			onToolCall?.(resolved.toolName, tc.arguments)
+
+			try {
+				const toolResult = await window.ipcRenderer.mcpCallTool(
+					resolved.serverId,
+					resolved.toolName,
+					tc.arguments || {}
+				)
+				tc.result = toolResult
+
+				const toolResultMsg: ChatMessage = {
+					role: 'tool',
+					content: JSON.stringify(toolResult),
+					toolCallId: tc.id,
+					toolName: tc.name
+				}
+				currentMessages.push(toolResultMsg)
+				onToolResult?.(resolved.toolName, toolResult)
+			} catch (err: any) {
+				const errorResult = { error: err.message }
+				tc.result = errorResult
+
+				const toolResultMsg: ChatMessage = {
+					role: 'tool',
+					content: JSON.stringify(errorResult),
+					toolCallId: tc.id,
+					toolName: tc.name
+				}
+				currentMessages.push(toolResultMsg)
+				onToolResult?.(resolved.toolName, errorResult)
+			}
+		}
+		// Loop to send tool results back to AI
+	}
+
+	return {
+		messages: currentMessages,
+		response: 'Maximum tool call rounds reached.'
+	}
+}
+
+// ---- Provider-specific implementations ----
+
+async function callOpenAIWithTools(
+	apiKey: string,
+	systemPrompt: string,
+	messages: ChatMessage[],
+	mcpTools: McpToolInfo[]
+): Promise<{ content: string; toolCalls: ToolCall[] }> {
+	const openAIMessages = [
+		{ role: 'system', content: systemPrompt },
+		...messages.map(m => {
+			if (m.role === 'assistant' && m.toolCalls?.length) {
+				return {
+					role: 'assistant' as const,
+					content: m.content || null,
+					tool_calls: m.toolCalls.map(tc => ({
+						id: tc.id,
+						type: 'function' as const,
+						function: { name: tc.name, arguments: JSON.stringify(tc.arguments) }
+					}))
+				}
+			}
+			if (m.role === 'tool') {
+				return {
+					role: 'tool' as const,
+					content: m.content,
+					tool_call_id: m.toolCallId
+				}
+			}
+			return { role: m.role, content: m.content }
+		})
+	]
+
+	const tools = convertToOpenAITools(mcpTools)
+
+	const response = await axios.post(
+		'https://api.openai.com/v1/chat/completions',
+		{
+			model: 'gpt-4o-mini',
+			messages: openAIMessages,
+			...(tools.length > 0 ? { tools } : {})
+		},
+		{
+			headers: {
+				'Authorization': `Bearer ${apiKey}`,
+				'Content-Type': 'application/json'
+			}
+		}
+	)
+
+	const choice = response.data.choices[0]
+	const content = choice.message.content || ''
+	const toolCalls: ToolCall[] = (choice.message.tool_calls || []).map((tc: any) => ({
+		id: tc.id,
+		name: tc.function.name,
+		arguments: JSON.parse(tc.function.arguments || '{}')
+	}))
+
+	return { content, toolCalls }
+}
+
+async function callAnthropicWithTools(
+	apiKey: string,
+	systemPrompt: string,
+	messages: ChatMessage[],
+	mcpTools: McpToolInfo[]
+): Promise<{ content: string; toolCalls: ToolCall[] }> {
+	// Convert messages to Anthropic format
+	const anthropicMessages: any[] = []
+
+	for (const m of messages) {
+		if (m.role === 'user') {
+			anthropicMessages.push({ role: 'user', content: m.content })
+		} else if (m.role === 'assistant') {
+			const content: any[] = []
+			if (m.content) content.push({ type: 'text', text: m.content })
+			if (m.toolCalls?.length) {
+				for (const tc of m.toolCalls) {
+					content.push({
+						type: 'tool_use',
+						id: tc.id,
+						name: tc.name,
+						input: tc.arguments
+					})
+				}
+			}
+			anthropicMessages.push({ role: 'assistant', content })
+		} else if (m.role === 'tool') {
+			// Anthropic tool results go inside a user message
+			const lastMsg = anthropicMessages[anthropicMessages.length - 1]
+			const toolResultBlock = {
+				type: 'tool_result',
+				tool_use_id: m.toolCallId,
+				content: m.content
+			}
+			if (lastMsg?.role === 'user' && Array.isArray(lastMsg.content)) {
+				lastMsg.content.push(toolResultBlock)
+			} else {
+				anthropicMessages.push({ role: 'user', content: [toolResultBlock] })
+			}
+		}
+	}
+
+	const tools = convertToAnthropicTools(mcpTools)
+
+	const response = await axios.post(
+		'https://api.anthropic.com/v1/messages',
+		{
+			model: 'claude-sonnet-4-20250514',
+			max_tokens: 4096,
+			system: systemPrompt,
+			messages: anthropicMessages,
+			...(tools.length > 0 ? { tools } : {})
+		},
+		{
+			headers: {
+				'x-api-key': apiKey,
+				'anthropic-version': '2023-06-01',
+				'Content-Type': 'application/json',
+				'anthropic-dangerous-direct-browser-access': 'true'
+			}
+		}
+	)
+
+	let content = ''
+	const toolCalls: ToolCall[] = []
+
+	for (const block of response.data.content) {
+		if (block.type === 'text') {
+			content += block.text
+		} else if (block.type === 'tool_use') {
+			toolCalls.push({
+				id: block.id,
+				name: block.name,
+				arguments: block.input || {}
+			})
+		}
+	}
+
+	return { content, toolCalls }
+}
+
+async function callGeminiWithTools(
+	apiKey: string,
+	systemPrompt: string,
+	messages: ChatMessage[],
+	mcpTools: McpToolInfo[]
+): Promise<{ content: string; toolCalls: ToolCall[] }> {
+	// Convert messages to Gemini format
+	const geminiContents: any[] = []
+
+	for (const m of messages) {
+		if (m.role === 'user') {
+			geminiContents.push({ role: 'user', parts: [{ text: m.content }] })
+		} else if (m.role === 'assistant') {
+			const parts: any[] = []
+			if (m.content) parts.push({ text: m.content })
+			if (m.toolCalls?.length) {
+				for (const tc of m.toolCalls) {
+					parts.push({
+						functionCall: { name: tc.name, args: tc.arguments }
+					})
+				}
+			}
+			geminiContents.push({ role: 'model', parts })
+		} else if (m.role === 'tool') {
+			geminiContents.push({
+				role: 'user',
+				parts: [{
+					functionResponse: {
+						name: m.toolName,
+						response: JSON.parse(m.content)
+					}
+				}]
+			})
+		}
+	}
+
+	const tools = convertToGeminiTools(mcpTools)
+
+	const response = await axios.post(
+		`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+		{
+			systemInstruction: { parts: [{ text: systemPrompt }] },
+			contents: geminiContents,
+			...(mcpTools.length > 0 ? { tools } : {})
+		}
+	)
+
+	const candidate = response.data.candidates[0]
+	let content = ''
+	const toolCalls: ToolCall[] = []
+
+	for (const part of candidate.content.parts) {
+		if (part.text) {
+			content += part.text
+		} else if (part.functionCall) {
+			toolCalls.push({
+				id: `gemini_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+				name: part.functionCall.name,
+				arguments: part.functionCall.args || {}
+			})
+		}
+	}
+
+	return { content, toolCalls }
+}
+
+
+// ---- Legacy single-shot functions (kept for backward compatibility) ----
+
 async function callAi(
 	config: AiHelperConfig,
 	systemPrompt: string,

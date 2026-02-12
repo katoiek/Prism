@@ -360,6 +360,10 @@ ipcMain.handle('mcp:get-status', async (_, serverId: string) => {
 	return mcpManager.getServerStatus(serverId)
 })
 
+ipcMain.handle('mcp:list-all-tools', async () => {
+	return mcpManager.listAllTools()
+})
+
 function createWindow() {
 	win = new BrowserWindow({
 		width: 1200,

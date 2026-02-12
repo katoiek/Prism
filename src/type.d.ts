@@ -21,6 +21,7 @@ export interface IpcRenderer {
 	mcpListPrompts: (serverId: string) => Promise<any[]>
 	mcpGetPrompt: (serverId: string, name: string, args?: any) => Promise<any>
 	mcpGetStatus: (serverId: string) => Promise<string>
+	mcpListAllTools: () => Promise<Array<{ serverId: string; serverName: string; tool: any }>>
 }
 
 declare global {

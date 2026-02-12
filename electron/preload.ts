@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 	mcpListPrompts: (serverId: string) => ipcRenderer.invoke('mcp:list-prompts', serverId),
 	mcpGetPrompt: (serverId: string, name: string, args?: any) => ipcRenderer.invoke('mcp:get-prompt', serverId, name, args),
 	mcpGetStatus: (serverId: string) => ipcRenderer.invoke('mcp:get-status', serverId),
+	mcpListAllTools: () => ipcRenderer.invoke('mcp:list-all-tools'),
 
 	// You can expose other apts you need here.
 	// ...

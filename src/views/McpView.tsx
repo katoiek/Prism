@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Trash2, Power, PowerOff, Play, Loader2, Server, Wrench, FolderOpen, Copy, Check, Edit, FileJson } from 'lucide-react'
+import { Plus, Trash2, Power, PowerOff, Play, Loader2, Server, Wrench, FolderOpen, Copy, Check, Edit, FileJson, Sparkles, MessageSquare } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { AiQueryBar } from '@/components/AiQueryBar'
 
 type McpServerStatus = 'connected' | 'disconnected' | 'connecting' | 'error'
 
@@ -19,7 +20,7 @@ export function McpView() {
 	const [serverStatuses, setServerStatuses] = useState<Record<string, McpServerStatus>>({})
 
 	// Tabs State (Manual management because of custom Tabs component)
-	const [activeTab, setActiveTab] = useState<'servers' | 'tools' | 'resources'>('servers')
+	const [activeTab, setActiveTab] = useState<'chat' | 'servers' | 'tools' | 'resources'>('chat')
 
 	// Add/Edit Server Form
 	const [showForm, setShowForm] = useState(false)
@@ -324,8 +325,8 @@ export function McpView() {
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-xl font-bold flex items-center gap-2">
-						<Server className="w-5 h-5 text-primary" />
-						{t('mcp.title')}
+						<Sparkles className="w-5 h-5 text-primary" />
+						AI Chat
 					</h2>
 					<p className="text-sm text-muted-foreground mt-1">{t('mcp.subtitle')}</p>
 				</div>
@@ -470,7 +471,15 @@ export function McpView() {
 			)}
 
 			<Tabs className="w-full">
-				<TabsList className="grid w-full grid-cols-3">
+				<TabsList className="grid w-full grid-cols-4">
+					<TabsTrigger
+						active={activeTab === 'chat'}
+						onClick={() => setActiveTab('chat')}
+						className="text-xs"
+					>
+						<MessageSquare className="w-3 h-3 mr-1" />
+						Chat
+					</TabsTrigger>
 					<TabsTrigger
 						active={activeTab === 'servers'}
 						onClick={() => setActiveTab('servers')}
@@ -496,6 +505,11 @@ export function McpView() {
 						{t('mcp.resources')} ({allResources.length})
 					</TabsTrigger>
 				</TabsList>
+
+				{/* Chat Tab */}
+				<TabsContent active={activeTab === 'chat'} className="mt-4">
+					<AiQueryBar />
+				</TabsContent>
 
 				{/* Servers Tab */}
 				<TabsContent active={activeTab === 'servers'} className="space-y-3 mt-4">
