@@ -10,6 +10,17 @@ export interface IpcRenderer {
 	startOAuth2: (config: any) => Promise<any>
 	refreshToken: (config: any) => Promise<any>
 	apiRequest: (config: any) => Promise<any>
+
+	// MCP Server Client
+	mcpConnect: (config: any) => Promise<any>
+	mcpDisconnect: (serverId: string) => Promise<void>
+	mcpListTools: (serverId: string) => Promise<any[]>
+	mcpCallTool: (serverId: string, name: string, args?: any) => Promise<any>
+	mcpListResources: (serverId: string) => Promise<any[]>
+	mcpReadResource: (serverId: string, uri: string) => Promise<any>
+	mcpListPrompts: (serverId: string) => Promise<any[]>
+	mcpGetPrompt: (serverId: string, name: string, args?: any) => Promise<any>
+	mcpGetStatus: (serverId: string) => Promise<string>
 }
 
 declare global {
