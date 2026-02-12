@@ -1,4 +1,4 @@
-import { LayoutDashboard, Settings, ChevronDown, ChevronRight, Globe, Search, X, Plug, Sparkles } from 'lucide-react'
+import { LayoutDashboard, Settings, ChevronDown, ChevronRight, Globe, Search, X, Plug, Blocks } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { useAppStore, type View } from '@/store/appStore'
@@ -94,7 +94,7 @@ export function Sidebar() {
 			<nav className="p-2 space-y-1">
 				<NavItem view="connections" icon={Plug} label={t('sidebar.connections')} />
 				<NavItem view="query" icon={LayoutDashboard} label={t('sidebar.query')} />
-				<NavItem view="mcp" icon={Sparkles} label={t('sidebar.aiChat', { defaultValue: 'AI Chat' })} />
+				<NavItem view="mcp" icon={Blocks} label={t('sidebar.connectors', { defaultValue: 'Connectors (MCP Server Management)' })} />
 				<NavItem view="settings" icon={Settings} label={t('sidebar.settings')} />
 			</nav>
 

@@ -10,6 +10,7 @@ const resources = {
 				query: 'Query',
 				settings: 'Settings',
 				askAi: 'Ask AI',
+				connectors: 'Connectors (MCP Server Management)',
 				searchEndpoints: 'Search endpoints...',
 				endpoints: 'Endpoints'
 			},
@@ -124,8 +125,8 @@ const resources = {
 				copy: 'Copy'
 			},
 			mcp: {
-				title: 'MCP Servers',
-				subtitle: 'Connect to MCP servers to use tools and resources.',
+				title: 'Connectors (MCP Server Management)',
+				subtitle: 'Connect to MCP servers and connectors to use tools and resources.',
 				addServer: 'Add Server',
 				editServer: 'Edit Server',
 				serverName: 'Server Name',
@@ -153,7 +154,14 @@ const resources = {
 				import: 'Import',
 				edit: 'Edit',
 				env: 'Env Vars (JSON)',
-				envPlaceholder: '{"KEY": "VALUE"}'
+				envPlaceholder: '{"KEY": "VALUE"}',
+				connectors: 'Connectors',
+				selectConnector: 'Select a connector...',
+				addConnector: 'Add Connector',
+				noConnectors: 'No connectors added yet. Select a connector from the dropdown above.',
+				envConfig: 'Environment Configuration',
+				connectorAdded: 'Connector added successfully.',
+				configureEnv: 'Configure the required environment variables for this connector.'
 			}
 		}
 	},
@@ -164,6 +172,7 @@ const resources = {
 				query: 'クエリ実行',
 				settings: '設定',
 				askAi: 'AIに相談',
+				connectors: 'コネクタ（MCPサーバー管理）',
 				searchEndpoints: 'エンドポイントを検索...',
 				endpoints: 'エンドポイント'
 			},
@@ -272,8 +281,8 @@ const resources = {
 				copy: 'コピー'
 			},
 			mcp: {
-				title: 'MCPサーバー',
-				subtitle: 'MCPサーバーに接続してツールやリソースを利用します。',
+				title: 'コネクタ（MCPサーバー管理）',
+				subtitle: 'MCPサーバーやコネクタに接続してツールやリソースを利用します。',
 				addServer: 'サーバーを追加',
 				editServer: 'サーバーを編集',
 				serverName: 'サーバー名',
@@ -301,7 +310,14 @@ const resources = {
 				import: 'インポート',
 				edit: '編集',
 				env: '環境変数 (JSON)',
-				envPlaceholder: '{"KEY": "VALUE"}'
+				envPlaceholder: '{"KEY": "VALUE"}',
+				connectors: 'コネクタ',
+				selectConnector: 'コネクタを選択...',
+				addConnector: 'コネクタを追加',
+				noConnectors: 'コネクタが未追加です。上のドロップダウンからコネクタを選択してください。',
+				envConfig: '環境変数の設定',
+				connectorAdded: 'コネクタが正常に追加されました。',
+				configureEnv: 'このコネクタに必要な環境変数を設定してください。'
 			}
 		}
 	}

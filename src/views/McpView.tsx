@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Trash2, Power, PowerOff, Play, Loader2, Server, Wrench, FolderOpen, Copy, Check, Edit, FileJson, Sparkles, MessageSquare } from 'lucide-react'
+import { Plus, Trash2, Power, PowerOff, Play, Loader2, Server, Wrench, FolderOpen, Copy, Check, Edit, FileJson, Blocks, MessageSquare, ChevronDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { AiQueryBar } from '@/components/AiQueryBar'
+import { CONNECTOR_PRESETS, type ConnectorPreset } from '@/lib/connectorPresets'
 
 type McpServerStatus = 'connected' | 'disconnected' | 'connecting' | 'error'
 
@@ -20,7 +21,7 @@ export function McpView() {
 	const [serverStatuses, setServerStatuses] = useState<Record<string, McpServerStatus>>({})
 
 	// Tabs State (Manual management because of custom Tabs component)
-	const [activeTab, setActiveTab] = useState<'chat' | 'servers' | 'tools' | 'resources'>('chat')
+	const [activeTab, setActiveTab] = useState<'chat' | 'connectors' | 'servers' | 'tools' | 'resources'>('chat')
 
 	// Add/Edit Server Form
 	const [showForm, setShowForm] = useState(false)
@@ -54,6 +55,11 @@ export function McpView() {
 
 	// Copy state
 	const [copiedResult, setCopiedResult] = useState(false)
+
+	// Connector state
+	const [selectedPreset, setSelectedPreset] = useState<ConnectorPreset | null>(null)
+	const [connectorEnvValues, setConnectorEnvValues] = useState<Record<string, string>>({})
+	const [showPresetDropdown, setShowPresetDropdown] = useState(false)
 
 	const resetForm = () => {
 		setName('')
@@ -117,17 +123,14 @@ export function McpView() {
 			}
 
 			// Smart detection for Wrike/mcp-remote config (convert to direct HTTP)
-			// e.g. command: "npx", args: ["-y", "mcp-remote", "https://...", "--header", "Authorization:..."]
 			if (config.command === 'npx' && Array.isArray(config.args) && config.args.some((a: string) => a.includes('mcp-remote'))) {
 				console.log('[MCP] Detected mcp-remote config, converting to HTTP...')
 				const urlArg = config.args.find((a: string) => a.startsWith('http'))
 
-				// Extract headers from args
 				const headersObj: Record<string, string> = {}
 				const headerIdx = config.args.indexOf('--header')
 				if (headerIdx !== -1 && config.args[headerIdx + 1]) {
 					const headerVal = config.args[headerIdx + 1]
-					// "Key:Val" or "Key: Val" or "Key:${VAR}"
 					const parts = headerVal.split(':')
 					if (parts.length >= 2) {
 						const key = parts[0].trim()
@@ -143,11 +146,10 @@ export function McpView() {
 					setEnv(config.env ? JSON.stringify(config.env, null, 2) : '')
 					if (!name) setName(serverName)
 					setIsJsonMode(false)
-					return // Early return as we handled it
+					return
 				}
 			}
 
-			// Determine type
 			if (config.command) {
 				setType('stdio')
 				setCommand(config.command)
@@ -164,7 +166,6 @@ export function McpView() {
 				throw new Error('Invalid config: missing "command" or "url"')
 			}
 
-			// Switch back to manual mode to show populated fields
 			setIsJsonMode(false)
 		} catch (err: any) {
 			setJsonError(err.message)
@@ -207,7 +208,7 @@ export function McpView() {
 			id: editingId || `mcp-${Date.now()}`,
 			name: name.trim(),
 			type: type,
-			env: envObj, // Common for both types now
+			env: envObj,
 			...(type === 'stdio'
 				? {
 					command: command.trim(),
@@ -300,6 +301,41 @@ export function McpView() {
 		})
 	}, [toolResult])
 
+	// Connector handlers
+	const handleSelectPreset = (preset: ConnectorPreset) => {
+		setSelectedPreset(preset)
+		setConnectorEnvValues({})
+		setShowPresetDropdown(false)
+	}
+
+	const handleAddConnector = () => {
+		if (!selectedPreset) return
+
+		const envObj: Record<string, string> = {}
+		for (const envKey of selectedPreset.mcpConfig.envKeys || []) {
+			const val = connectorEnvValues[envKey.key]
+			if (val && val.trim()) {
+				envObj[envKey.key] = val.trim()
+			}
+		}
+
+		const config: McpServerConfig = {
+			id: `connector-${selectedPreset.id}-${Date.now()}`,
+			name: selectedPreset.name,
+			type: selectedPreset.mcpConfig.type,
+			command: selectedPreset.mcpConfig.command,
+			args: selectedPreset.mcpConfig.args,
+			env: Object.keys(envObj).length > 0 ? envObj : undefined,
+			url: selectedPreset.mcpConfig.url,
+		}
+
+		addMcpServer(config)
+		setSelectedPreset(null)
+		setConnectorEnvValues({})
+		// Switch to servers tab to see the added connector
+		setActiveTab('servers')
+	}
+
 	const statusBadge = (status: McpServerStatus | undefined) => {
 		const s = status || 'disconnected'
 		const variants: Record<string, { label: string; className: string }> = {
@@ -325,8 +361,8 @@ export function McpView() {
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-xl font-bold flex items-center gap-2">
-						<Sparkles className="w-5 h-5 text-primary" />
-						AI Chat
+						<Blocks className="w-5 h-5 text-primary" />
+						{t('mcp.title')}
 					</h2>
 					<p className="text-sm text-muted-foreground mt-1">{t('mcp.subtitle')}</p>
 				</div>
@@ -471,7 +507,7 @@ export function McpView() {
 			)}
 
 			<Tabs className="w-full">
-				<TabsList className="grid w-full grid-cols-4">
+				<TabsList className="grid w-full grid-cols-5">
 					<TabsTrigger
 						active={activeTab === 'chat'}
 						onClick={() => setActiveTab('chat')}
@@ -479,6 +515,14 @@ export function McpView() {
 					>
 						<MessageSquare className="w-3 h-3 mr-1" />
 						Chat
+					</TabsTrigger>
+					<TabsTrigger
+						active={activeTab === 'connectors'}
+						onClick={() => setActiveTab('connectors')}
+						className="text-xs"
+					>
+						<Blocks className="w-3 h-3 mr-1" />
+						{t('mcp.connectors')}
 					</TabsTrigger>
 					<TabsTrigger
 						active={activeTab === 'servers'}
@@ -509,6 +553,103 @@ export function McpView() {
 				{/* Chat Tab */}
 				<TabsContent active={activeTab === 'chat'} className="mt-4">
 					<AiQueryBar />
+				</TabsContent>
+
+				{/* Connectors Tab */}
+				<TabsContent active={activeTab === 'connectors'} className="mt-4 space-y-4">
+					{/* Connector Dropdown */}
+					<Card>
+						<CardContent className="p-4 space-y-4">
+							<div className="relative">
+								<button
+									onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+									className="w-full flex items-center justify-between px-3 py-2.5 rounded-md border bg-background text-sm hover:bg-muted transition-colors"
+								>
+									<span className={selectedPreset ? 'text-foreground' : 'text-muted-foreground'}>
+										{selectedPreset ? (
+											<span className="flex items-center gap-2">
+												{selectedPreset.icon.startsWith('http') ? <img src={selectedPreset.icon} alt={selectedPreset.name} className="w-5 h-5 rounded-sm object-contain shrink-0" /> : <span className="text-lg">{selectedPreset.icon}</span>}
+												{selectedPreset.name}
+												<span className="text-xs text-muted-foreground">– {selectedPreset.description}</span>
+											</span>
+										) : (
+											t('mcp.selectConnector')
+										)}
+									</span>
+									<ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showPresetDropdown ? 'rotate-180' : ''}`} />
+								</button>
+
+								{showPresetDropdown && (
+									<div className="absolute z-50 w-full mt-1 rounded-md border bg-popover shadow-lg max-h-64 overflow-auto animate-in fade-in slide-in-from-top-1">
+										{CONNECTOR_PRESETS.map(preset => (
+											<button
+												key={preset.id}
+												onClick={() => handleSelectPreset(preset)}
+												className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted transition-colors text-left border-b last:border-b-0"
+											>
+												{preset.icon.startsWith('http') ? <img src={preset.icon} alt={preset.name} className="w-6 h-6 rounded-sm object-contain shrink-0" /> : <span className="text-xl shrink-0">{preset.icon}</span>}
+												<div className="flex-1 min-w-0">
+													<div className="font-medium">{preset.name}</div>
+													<div className="text-xs text-muted-foreground truncate">{preset.description}</div>
+												</div>
+												<Badge variant="outline" className="text-[9px] shrink-0">{preset.category}</Badge>
+											</button>
+										))}
+									</div>
+								)}
+							</div>
+
+							{/* Connector Config Form */}
+							{selectedPreset && (
+								<div className="space-y-3 pt-2 border-t animate-in fade-in slide-in-from-top-2">
+									<div className="flex items-center gap-2">
+										{selectedPreset.icon.startsWith('http') ? <img src={selectedPreset.icon} alt={selectedPreset.name} className="w-8 h-8 rounded-sm object-contain shrink-0" /> : <span className="text-2xl">{selectedPreset.icon}</span>}
+										<div>
+											<h3 className="font-semibold text-sm">{selectedPreset.name}</h3>
+											<p className="text-xs text-muted-foreground">{selectedPreset.description}</p>
+										</div>
+									</div>
+
+									{selectedPreset.mcpConfig.envKeys && selectedPreset.mcpConfig.envKeys.length > 0 && (
+										<div className="space-y-2">
+											<p className="text-xs text-muted-foreground">{t('mcp.configureEnv')}</p>
+											{selectedPreset.mcpConfig.envKeys.map(envKey => (
+												<div key={envKey.key} className="grid gap-1">
+													<label className="text-xs font-medium flex items-center gap-1">
+														{envKey.label}
+														{envKey.required && <span className="text-red-500">*</span>}
+														<span className="text-[10px] text-muted-foreground font-mono">({envKey.key})</span>
+													</label>
+													<Input
+														type={envKey.secret ? 'password' : 'text'}
+														value={connectorEnvValues[envKey.key] || ''}
+														onChange={e => setConnectorEnvValues(prev => ({ ...prev, [envKey.key]: e.target.value }))}
+														placeholder={envKey.placeholder}
+														className="h-8 text-sm font-mono"
+													/>
+												</div>
+											))}
+										</div>
+									)}
+
+									<div className="flex items-center justify-between pt-2">
+										<div className="text-[10px] text-muted-foreground font-mono">
+											{selectedPreset.mcpConfig.command} {(selectedPreset.mcpConfig.args || []).join(' ')}
+										</div>
+										<div className="flex gap-2">
+											<Button variant="ghost" size="sm" onClick={() => setSelectedPreset(null)}>
+												{t('query.close', { defaultValue: 'Cancel' })}
+											</Button>
+											<Button size="sm" onClick={handleAddConnector}>
+												<Plus className="w-3.5 h-3.5 mr-1" />
+												{t('mcp.addConnector')}
+											</Button>
+										</div>
+									</div>
+								</div>
+							)}
+						</CardContent>
+					</Card>
 				</TabsContent>
 
 				{/* Servers Tab */}
