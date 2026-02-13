@@ -2,6 +2,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { ConnectionsView } from '@/views/ConnectionsView'
 import { QueryView } from '@/views/QueryView'
 import { SettingsView } from '@/views/SettingsView'
+import { McpView } from '@/views/McpView'
 import { useAppStore } from '@/store/appStore'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useEffect } from 'react'
@@ -28,6 +29,7 @@ function App() {
             {activeView === 'connections' && <ConnectionsView />}
             {activeView === 'query' && <QueryView />}
             {activeView === 'settings' && <SettingsView />}
+            {activeView === 'mcp' && <McpView />}
           </main>
         </ResizablePanel>
       </ResizablePanelGroup>

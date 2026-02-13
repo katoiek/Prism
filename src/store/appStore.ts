@@ -3,7 +3,19 @@ import { persist } from 'zustand/middleware'
 import { type ParsedApi } from '@/lib/apiParser'
 import i18n from '@/i18n' // Added this import
 
-export type View = 'connections' | 'query' | 'settings'
+export type View = 'connections' | 'query' | 'settings' | 'mcp'
+
+export interface McpServerConfig {
+	id: string
+	name: string
+	type: 'stdio' | 'http'
+	command?: string
+	args?: string[]
+	env?: Record<string, string>
+	// http
+	url?: string
+	headers?: Record<string, string>
+}
 
 export interface Connection {
 	id: string
@@ -61,6 +73,12 @@ interface AppState {
 	selectedEndpointMethod?: string
 	setSelectedEndpoint: (connectionId: string, path: string, method: string) => void
 	setSelectedConnection: (connectionId: string) => void
+
+	// MCP
+	mcpServers: McpServerConfig[]
+	addMcpServer: (server: McpServerConfig) => void
+	updateMcpServer: (id: string, updates: Partial<McpServerConfig>) => void
+	removeMcpServer: (id: string) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -158,6 +176,14 @@ export const useAppStore = create<AppState>()(
 				selectedEndpointMethod: undefined,
 				activeView: 'query'
 			}),
+
+			// MCP
+			mcpServers: [],
+			addMcpServer: (server) => set((state) => ({ mcpServers: [...state.mcpServers, server] })),
+			updateMcpServer: (id, updates) => set((state) => ({
+				mcpServers: state.mcpServers.map(s => s.id === id ? { ...s, ...updates } : s)
+			})),
+			removeMcpServer: (id) => set((state) => ({ mcpServers: state.mcpServers.filter(s => s.id !== id) })),
 		}),
 		{
 			name: 'prism-storage',

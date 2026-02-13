@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { cn } from '@/lib/utils'
 import { Table, Code, ChevronDown, ChevronUp, Download } from 'lucide-react'
-import { AiQueryBar } from '@/components/AiQueryBar'
 import { ConnectionSettings } from '@/components/ConnectionSettings'
 import { JsonResponse } from '@/components/JsonResponse'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -151,10 +150,6 @@ export function QueryView() {
 											<ConnectionSettings connection={connection} />
 										</div>
 									)}
-								</div>
-
-								<div className="pt-2">
-									<AiQueryBar />
 								</div>
 							</div>
 						) : (

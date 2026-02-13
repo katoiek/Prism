@@ -36,6 +36,19 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 	setApiKey: (provider: string, key: string) => ipcRenderer.invoke('set-api-key', provider, key),
 
 
+	// MCP Server Client
+	mcpConnect: (config: any) => ipcRenderer.invoke('mcp:connect', config),
+	mcpCancelConnect: () => ipcRenderer.invoke('mcp:cancel-connect'),
+	mcpDisconnect: (serverId: string) => ipcRenderer.invoke('mcp:disconnect', serverId),
+	mcpListTools: (serverId: string) => ipcRenderer.invoke('mcp:list-tools', serverId),
+	mcpCallTool: (serverId: string, name: string, args?: any) => ipcRenderer.invoke('mcp:call-tool', serverId, name, args),
+	mcpListResources: (serverId: string) => ipcRenderer.invoke('mcp:list-resources', serverId),
+	mcpReadResource: (serverId: string, uri: string) => ipcRenderer.invoke('mcp:read-resource', serverId, uri),
+	mcpListPrompts: (serverId: string) => ipcRenderer.invoke('mcp:list-prompts', serverId),
+	mcpGetPrompt: (serverId: string, name: string, args?: any) => ipcRenderer.invoke('mcp:get-prompt', serverId, name, args),
+	mcpGetStatus: (serverId: string) => ipcRenderer.invoke('mcp:get-status', serverId),
+	mcpListAllTools: () => ipcRenderer.invoke('mcp:list-all-tools'),
+
 	// You can expose other apts you need here.
 	// ...
 })

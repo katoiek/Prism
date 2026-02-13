@@ -1,12 +1,20 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import path from 'path'
 import fs from 'fs'
+
+// Disable SSL certificate verification for MCP HTTP connections (e.g. ClickUp, Asana)
+// This is needed because StreamableHTTPClientTransport uses Node.js fetch internally
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 import SwaggerParser from '@apidevtools/swagger-parser'
 import yaml from 'js-yaml'
 import axios from 'axios'
 import https from 'https'
 import { getConnectionSecrets, setConnectionSecrets, deleteConnectionSecrets, getApiKeys, setApiKey } from './secureStore'
+import * as mcpManager from './mcpManager'
+
+// Inject browser opener for MCP OAuth
+mcpManager.setOpenExternalUrl((url: string) => shell.openExternal(url))
 
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, '../public')
@@ -129,7 +137,6 @@ ipcMain.handle('open-file-dialog', async () => {
 })
 
 import express from 'express'
-import { shell } from 'electron'
 import type { Server } from 'http'
 
 // OAuth2 Handler
@@ -322,6 +329,51 @@ ipcMain.handle('api-request', async (_event, config: {
 	}
 })
 
+// ----- MCP Server Client Handlers -----
+ipcMain.handle('mcp:connect', async (_, config) => {
+	return mcpManager.connectServer(config)
+})
+
+ipcMain.handle('mcp:cancel-connect', async () => {
+	await mcpManager.cancelConnect()
+})
+
+ipcMain.handle('mcp:disconnect', async (_, serverId: string) => {
+	await mcpManager.disconnectServer(serverId)
+})
+
+ipcMain.handle('mcp:list-tools', async (_, serverId: string) => {
+	return mcpManager.listTools(serverId)
+})
+
+ipcMain.handle('mcp:call-tool', async (_, serverId: string, name: string, args?: Record<string, unknown>) => {
+	return mcpManager.callTool(serverId, name, args)
+})
+
+ipcMain.handle('mcp:list-resources', async (_, serverId: string) => {
+	return mcpManager.listResources(serverId)
+})
+
+ipcMain.handle('mcp:read-resource', async (_, serverId: string, uri: string) => {
+	return mcpManager.readResource(serverId, uri)
+})
+
+ipcMain.handle('mcp:list-prompts', async (_, serverId: string) => {
+	return mcpManager.listPrompts(serverId)
+})
+
+ipcMain.handle('mcp:get-prompt', async (_, serverId: string, name: string, args?: Record<string, string>) => {
+	return mcpManager.getPrompt(serverId, name, args)
+})
+
+ipcMain.handle('mcp:get-status', async (_, serverId: string) => {
+	return mcpManager.getServerStatus(serverId)
+})
+
+ipcMain.handle('mcp:list-all-tools', async () => {
+	return mcpManager.listAllTools()
+})
+
 function createWindow() {
 	win = new BrowserWindow({
 		width: 1200,
@@ -351,6 +403,10 @@ app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') {
 		app.quit()
 	}
+})
+
+app.on('before-quit', async () => {
+	await mcpManager.disconnectAll()
 })
 
 app.on('activate', () => {
