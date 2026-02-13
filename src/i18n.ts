@@ -127,7 +127,7 @@ const resources = {
 			mcp: {
 				title: 'Connectors (MCP Server Management)',
 				subtitle: 'Connect to MCP servers and connectors to use tools and resources.',
-				addServer: 'Add Server',
+				addServer: 'Add Server Manually',
 				editServer: 'Edit Server',
 				serverName: 'Server Name',
 				type: 'Type',
@@ -283,7 +283,7 @@ const resources = {
 			mcp: {
 				title: 'コネクタ（MCPサーバー管理）',
 				subtitle: 'MCPサーバーやコネクタに接続してツールやリソースを利用します。',
-				addServer: 'サーバーを追加',
+				addServer: 'サーバーを手動で追加',
 				editServer: 'サーバーを編集',
 				serverName: 'サーバー名',
 				type: 'タイプ',

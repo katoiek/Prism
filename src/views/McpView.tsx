@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useAppStore, type McpServerConfig } from '@/store/appStore'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,7 +22,7 @@ export function McpView() {
 	const [serverStatuses, setServerStatuses] = useState<Record<string, McpServerStatus>>({})
 
 	// Tabs State (Manual management because of custom Tabs component)
-	const [activeTab, setActiveTab] = useState<'chat' | 'connectors' | 'servers' | 'tools' | 'resources'>('chat')
+	const [activeTab, setActiveTab] = useState<'chat' | 'servers' | 'tools' | 'resources'>('chat')
 
 	// Add/Edit Server Form
 	const [showForm, setShowForm] = useState(false)
@@ -63,6 +63,19 @@ export function McpView() {
 	const [connectorSearchQuery, setConnectorSearchQuery] = useState('')
 	const [connectingPreset, setConnectingPreset] = useState<ConnectorPreset | null>(null)
 	const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+	const dropdownRef = useRef<HTMLDivElement>(null)
+
+	useEffect(() => {
+		function handleClickOutside(event: MouseEvent) {
+			if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+				setShowPresetDropdown(false)
+			}
+		}
+		document.addEventListener('mousedown', handleClickOutside)
+		return () => {
+			document.removeEventListener('mousedown', handleClickOutside)
+		}
+	}, [])
 
 	const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
 		setToast({ message, type })
@@ -441,10 +454,12 @@ export function McpView() {
 					</h2>
 					<p className="text-sm text-muted-foreground mt-1">{t('mcp.subtitle')}</p>
 				</div>
-				<Button size="sm" onClick={() => (showForm ? setShowForm(false) : openAddForm())}>
-					{showForm ? <Trash2 className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
-					{showForm ? t('query.close', { defaultValue: 'Cancel' }) : t('mcp.addServer')}
-				</Button>
+				{showForm && (
+					<Button size="sm" variant="outline" onClick={() => setShowForm(false)}>
+						<X className="w-4 h-4 mr-1" />
+						{t('query.close', { defaultValue: 'Cancel' })}
+					</Button>
+				)}
 			</div>
 
 			{/* Add/Edit Server Form */}
@@ -582,7 +597,7 @@ export function McpView() {
 			)}
 
 			<Tabs className="w-full">
-				<TabsList className="grid w-full grid-cols-5">
+				<TabsList className="grid w-full grid-cols-4">
 					<TabsTrigger
 						active={activeTab === 'chat'}
 						onClick={() => setActiveTab('chat')}
@@ -592,20 +607,12 @@ export function McpView() {
 						Chat
 					</TabsTrigger>
 					<TabsTrigger
-						active={activeTab === 'connectors'}
-						onClick={() => setActiveTab('connectors')}
-						className="text-xs"
-					>
-						<Blocks className="w-3 h-3 mr-1" />
-						{t('mcp.connectors')}
-					</TabsTrigger>
-					<TabsTrigger
 						active={activeTab === 'servers'}
 						onClick={() => setActiveTab('servers')}
 						className="text-xs"
 					>
 						<Server className="w-3 h-3 mr-1" />
-						{t('mcp.servers')} ({mcpServers.length})
+						{t('mcp.servers', { defaultValue: 'Servers' })} & {t('mcp.connectors', { defaultValue: 'Connectors' })} ({mcpServers.length})
 					</TabsTrigger>
 					<TabsTrigger
 						active={activeTab === 'tools'}
@@ -630,126 +637,199 @@ export function McpView() {
 					<AiQueryBar />
 				</TabsContent>
 
-				{/* Connectors Tab */}
-				<TabsContent active={activeTab === 'connectors'} className="mt-4 space-y-4">
-					{/* Connector Dropdown */}
-					<Card>
-						<CardContent className="p-4 space-y-4">
-							<div className="relative">
-								<button
-									onClick={() => { setShowPresetDropdown(!showPresetDropdown); setConnectorSearchQuery('') }}
-									className="w-full flex items-center justify-between px-3 py-2.5 rounded-md border bg-background text-sm hover:bg-muted transition-colors"
-								>
-									<span className={selectedPreset ? 'text-foreground' : 'text-muted-foreground'}>
-										{selectedPreset ? (
-											<span className="flex items-center gap-2">
-												{selectedPreset.icon.startsWith('http') ? <img src={selectedPreset.icon} alt={selectedPreset.name} className="w-5 h-5 rounded-sm object-contain shrink-0" /> : <span className="text-lg">{selectedPreset.icon}</span>}
-												{selectedPreset.name}
-												<span className="text-xs text-muted-foreground">– {selectedPreset.description}</span>
-											</span>
-										) : (
-											t('mcp.selectConnector')
-										)}
-									</span>
-									<ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showPresetDropdown ? 'rotate-180' : ''}`} />
-								</button>
+				{/* Servers & Connectors Tab */}
+				<TabsContent active={activeTab === 'servers'} className="mt-4 space-y-6">
+					{/* Connector Dropdown (Gallery) */}
+					<div className="space-y-4">
+						<div className="flex items-center gap-2">
+							<Blocks className="w-4 h-4 text-primary" />
+							<h3 className="text-sm font-semibold">{t('mcp.connectors', { defaultValue: 'Connectors' })}</h3>
+						</div>
+						<Card>
+							<CardContent className="p-4 space-y-4">
+								<div className="relative" ref={dropdownRef}>
+									<button
+										onClick={() => { setShowPresetDropdown(!showPresetDropdown); setConnectorSearchQuery('') }}
+										className="w-full flex items-center justify-between px-3 py-2.5 rounded-md border bg-background text-sm hover:bg-muted transition-colors"
+									>
+										<span className={selectedPreset ? 'text-foreground' : 'text-muted-foreground'}>
+											{selectedPreset ? (
+												<span className="flex items-center gap-2">
+													{selectedPreset.icon.startsWith('http') ? <img src={selectedPreset.icon} alt={selectedPreset.name} className="w-5 h-5 rounded-sm object-contain shrink-0" /> : <span className="text-lg">{selectedPreset.icon}</span>}
+													{selectedPreset.name}
+													<span className="text-xs text-muted-foreground">– {selectedPreset.description}</span>
+												</span>
+											) : (
+												t('mcp.selectConnector')
+											)}
+										</span>
+										<ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showPresetDropdown ? 'rotate-180' : ''}`} />
+									</button>
 
-								{showPresetDropdown && (
-									<div className="absolute z-50 w-full mt-1 rounded-md border bg-popover shadow-lg max-h-80 flex flex-col animate-in fade-in slide-in-from-top-1">
-										<div className="p-2 border-b sticky top-0 bg-popover z-10">
-											<div className="relative">
-												<Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
-												<Input
-													value={connectorSearchQuery}
-													onChange={e => setConnectorSearchQuery(e.target.value)}
-													placeholder={t('mcp.searchConnectors', { defaultValue: 'Search connectors...' })}
-													className="h-8 pl-8 text-xs"
-													autoFocus
-													onClick={e => e.stopPropagation()}
-												/>
+									{showPresetDropdown && (
+										<div className="absolute z-50 w-full mt-1 rounded-md border bg-popover shadow-lg max-h-80 flex flex-col animate-in fade-in slide-in-from-top-1">
+											<div className="p-2 border-b sticky top-0 bg-popover z-10">
+												<div className="relative">
+													<Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+													<input
+														className="w-full h-8 pl-8 pr-3 text-xs bg-background border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+														value={connectorSearchQuery}
+														onChange={e => setConnectorSearchQuery(e.target.value)}
+														placeholder={t('mcp.searchConnectors', { defaultValue: 'Search connectors...' })}
+														autoFocus
+														onClick={e => e.stopPropagation()}
+													/>
+												</div>
+											</div>
+											<div className="overflow-auto flex-1">
+												{filteredPresets.length === 0 ? (
+													<div className="text-center py-6 text-sm text-muted-foreground">{t('mcp.noResults', { defaultValue: 'No connectors found' })}</div>
+												) : (
+													filteredPresets.map(preset => {
+														const connected = isConnectorConnected(preset.id)
+														return (
+															<button
+																key={preset.id}
+																onClick={() => handleSelectPreset(preset)}
+																className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted transition-colors text-left border-b last:border-b-0"
+															>
+																{preset.icon.startsWith('http') ? <img src={preset.icon} alt={preset.name} className="w-6 h-6 rounded-sm object-contain shrink-0" /> : <span className="text-xl shrink-0">{preset.icon}</span>}
+																<div className="flex-1 min-w-0">
+																	<div className="font-medium">{preset.name}</div>
+																	<div className="text-xs text-muted-foreground truncate">{preset.description}</div>
+																</div>
+																{connected ? (
+																	<Badge className="bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30 text-[9px] gap-1 shrink-0">
+																		<CheckCircle2 className="w-3 h-3" />
+																		{t('mcp.connected')}
+																	</Badge>
+																) : (
+																	<Badge variant="outline" className="text-[9px] shrink-0">{preset.category}</Badge>
+																)}
+															</button>
+														)
+													})
+												)}
 											</div>
 										</div>
-										<div className="overflow-auto flex-1">
-											{filteredPresets.length === 0 ? (
-												<div className="text-center py-6 text-sm text-muted-foreground">{t('mcp.noResults', { defaultValue: 'No connectors found' })}</div>
-											) : (
-												filteredPresets.map(preset => {
-													const connected = isConnectorConnected(preset.id)
-													return (
-														<button
-															key={preset.id}
-															onClick={() => handleSelectPreset(preset)}
-															className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted transition-colors text-left border-b last:border-b-0"
-														>
-															{preset.icon.startsWith('http') ? <img src={preset.icon} alt={preset.name} className="w-6 h-6 rounded-sm object-contain shrink-0" /> : <span className="text-xl shrink-0">{preset.icon}</span>}
-															<div className="flex-1 min-w-0">
-																<div className="font-medium">{preset.name}</div>
-																<div className="text-xs text-muted-foreground truncate">{preset.description}</div>
-															</div>
-															{connected ? (
-																<Badge className="bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30 text-[9px] gap-1 shrink-0">
-																	<CheckCircle2 className="w-3 h-3" />
-																	{t('mcp.connected')}
-																</Badge>
-															) : (
-																<Badge variant="outline" className="text-[9px] shrink-0">{preset.category}</Badge>
-															)}
-														</button>
-													)
-												})
+									)}
+								</div>
+
+								{/* Selected Connector Info + Connect Button */}
+								{selectedPreset && (
+									<div className="space-y-3 pt-2 border-t animate-in fade-in slide-in-from-top-2">
+										<div className="flex items-center gap-2">
+											{selectedPreset.icon.startsWith('http') ? <img src={selectedPreset.icon} alt={selectedPreset.name} className="w-8 h-8 rounded-sm object-contain shrink-0" /> : <span className="text-2xl">{selectedPreset.icon}</span>}
+											<div>
+												<h3 className="font-semibold text-sm">{selectedPreset.name}</h3>
+												<p className="text-xs text-muted-foreground">{selectedPreset.description}</p>
+											</div>
+											{selectedPreset.mcpConfig.type === 'http' && (
+												<Badge variant="outline" className="ml-auto text-[9px] text-blue-500 border-blue-500/30 bg-blue-500/10">OAuth</Badge>
 											)}
+										</div>
+
+										<div className="flex items-center justify-between pt-2">
+											<div className="text-[10px] text-muted-foreground">
+												{selectedPreset.mcpConfig.url || selectedPreset.mcpConfig.command || ''}
+											</div>
+											<div className="flex gap-2">
+												<Button variant="ghost" size="sm" onClick={() => setSelectedPreset(null)}>
+													{t('query.close', { defaultValue: 'Cancel' })}
+												</Button>
+												{isConnectorConnected(selectedPreset.id) ? (
+													<Button size="sm" variant="destructive" className="text-xs" onClick={() => { handleDisconnectPreset(selectedPreset.id); setSelectedPreset(null) }}>
+														<PowerOff className="w-3.5 h-3.5 mr-1" />
+														{t('mcp.disconnect')}
+													</Button>
+												) : selectedPreset.mcpConfig.url ? (
+													<Button size="sm" className="text-xs" onClick={() => handleConnectPreset(selectedPreset)}>
+														<ExternalLink className="w-3.5 h-3.5 mr-1" />
+														{t('mcp.connectAction', { defaultValue: '連携' })}
+													</Button>
+												) : (
+													<Badge variant="outline" className="text-xs text-muted-foreground py-1">
+														{t('mcp.comingSoon', { defaultValue: '準備中' })}
+													</Badge>
+												)}
+											</div>
 										</div>
 									</div>
 								)}
+							</CardContent>
+						</Card>
+					</div>
+
+					{/* Custom Servers Section */}
+					<div className="space-y-4 pt-4 border-t">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<Server className="w-4 h-4 text-primary" />
+								<h3 className="text-sm font-semibold">{t('mcp.servers', { defaultValue: 'Custom Servers' })}</h3>
 							</div>
-
-							{/* Selected Connector Info + Connect Button */}
-							{selectedPreset && (
-								<div className="space-y-3 pt-2 border-t animate-in fade-in slide-in-from-top-2">
-									<div className="flex items-center gap-2">
-										{selectedPreset.icon.startsWith('http') ? <img src={selectedPreset.icon} alt={selectedPreset.name} className="w-8 h-8 rounded-sm object-contain shrink-0" /> : <span className="text-2xl">{selectedPreset.icon}</span>}
-										<div>
-											<h3 className="font-semibold text-sm">{selectedPreset.name}</h3>
-											<p className="text-xs text-muted-foreground">{selectedPreset.description}</p>
-										</div>
-										{selectedPreset.mcpConfig.type === 'http' && (
-											<Badge variant="outline" className="ml-auto text-[9px] text-blue-500 border-blue-500/30 bg-blue-500/10">OAuth</Badge>
-										)}
-									</div>
-
-									<div className="flex items-center justify-between pt-2">
-										<div className="text-[10px] text-muted-foreground">
-											{selectedPreset.mcpConfig.url || selectedPreset.mcpConfig.command || ''}
-										</div>
-										<div className="flex gap-2">
-											<Button variant="ghost" size="sm" onClick={() => setSelectedPreset(null)}>
-												{t('query.close', { defaultValue: 'Cancel' })}
-											</Button>
-											{isConnectorConnected(selectedPreset.id) ? (
-												<Button size="sm" variant="destructive" className="text-xs" onClick={() => { handleDisconnectPreset(selectedPreset.id); setSelectedPreset(null) }}>
-													<PowerOff className="w-3.5 h-3.5 mr-1" />
-													{t('mcp.disconnect')}
-												</Button>
-											) : selectedPreset.mcpConfig.url ? (
-												<Button size="sm" className="text-xs" onClick={() => handleConnectPreset(selectedPreset)}>
-													<ExternalLink className="w-3.5 h-3.5 mr-1" />
-													{t('mcp.connectAction', { defaultValue: '連携' })}
-												</Button>
-											) : (
-												<Badge variant="outline" className="text-xs text-muted-foreground py-1">
-													{t('mcp.comingSoon', { defaultValue: '準備中' })}
-												</Badge>
-											)}
-										</div>
-									</div>
-								</div>
+							{!showForm && (
+								<Button size="sm" variant="outline" className="h-7 text-xs" onClick={openAddForm}>
+									<Plus className="w-3 h-3 mr-1" />
+									{t('mcp.addServer')}
+								</Button>
 							)}
-						</CardContent>
-					</Card>
+						</div>
+
+						{mcpServers.length === 0 ? (
+							<Card className="border-dashed">
+								<CardContent className="py-10 text-center text-muted-foreground">
+									<Server className="w-8 h-8 mx-auto mb-3 opacity-20" />
+									<p className="text-xs">{t('mcp.noServers')}</p>
+								</CardContent>
+							</Card>
+						) : (
+							<div className="grid gap-3">
+								{mcpServers.map(server => (
+									<Card key={server.id} className="group hover:border-primary/50 transition-colors">
+										<CardContent className="p-4">
+											<div className="flex items-center justify-between">
+												<div className="flex items-center gap-3">
+													<div>
+														<div className="flex items-center gap-2">
+															<span className="font-medium text-sm">{server.name}</span>
+															{statusBadge(serverStatuses[server.id])}
+														</div>
+														<div className="text-[10px] text-muted-foreground font-mono mt-0.5 max-w-[400px] truncate">
+															{server.type === 'stdio'
+																? `${server.command} ${(server.args || []).join(' ')}`
+																: `${server.url} ${server.headers ? '(Headers)' : ''}`
+															}
+														</div>
+													</div>
+												</div>
+												<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+													{serverStatuses[server.id] === 'connected' ? (
+														<Button size="icon" variant="ghost" className="h-8 w-8 text-red-500" onClick={() => handleDisconnect(server.id)}>
+															<PowerOff className="h-4 w-4" />
+														</Button>
+													) : (
+														<Button size="icon" variant="ghost" className="h-8 w-8 text-green-500" onClick={() => handleConnect(server)}>
+															<Power className="h-4 w-4" />
+														</Button>
+													)}
+													<Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditForm(server)}>
+														<Edit className="h-3.5 w-3.5" />
+													</Button>
+													<Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleRemoveServer(server.id)}>
+														<Trash2 className="h-3.5 w-3.5" />
+													</Button>
+												</div>
+											</div>
+										</CardContent>
+									</Card>
+								))}
+							</div>
+						)}
+					</div>
 
 					{/* Connecting Modal */}
 					{connectingPreset && (
-						<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in">
+						<div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 animate-in fade-in">
 							<Card className="w-[400px] shadow-2xl animate-in zoom-in-95">
 								<CardContent className="p-6 text-center space-y-4">
 									<div className="w-14 h-14 rounded-xl bg-muted/50 flex items-center justify-center mx-auto overflow-hidden">
@@ -771,86 +851,6 @@ export function McpView() {
 								</CardContent>
 							</Card>
 						</div>
-					)}
-				</TabsContent>
-
-				{/* Servers Tab */}
-				<TabsContent active={activeTab === 'servers'} className="space-y-3 mt-4">
-					{mcpServers.length === 0 ? (
-						<div className="text-center py-12 text-muted-foreground">
-							<Server className="w-10 h-10 mx-auto mb-3 opacity-30" />
-							<p className="text-sm">{t('mcp.noServers')}</p>
-						</div>
-					) : (
-						mcpServers.map(server => (
-							<Card key={server.id} className="group hover:border-primary/50 transition-colors">
-								<CardContent className="p-4">
-									<div className="flex items-center justify-between">
-										<div className="flex items-center gap-3">
-											<div>
-												<div className="flex items-center gap-2">
-													<span className="font-medium text-sm">{server.name}</span>
-													{statusBadge(serverStatuses[server.id])}
-												</div>
-												<div className="text-[10px] text-muted-foreground font-mono mt-0.5 max-w-[400px] truncate">
-													{server.type === 'stdio'
-														? `${server.command} ${(server.args || []).join(' ')}`
-														: `${server.url} ${server.headers ? '(Headers)' : ''}`
-													}
-												</div>
-											</div>
-										</div>
-										<div className="flex gap-1">
-											{serverStatuses[server.id] === 'connected' ? (
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-7 text-[10px] text-red-400 hover:text-red-300"
-													onClick={() => handleDisconnect(server.id)}
-												>
-													<PowerOff className="w-3.5 h-3.5 mr-1" />
-													{t('mcp.disconnect')}
-												</Button>
-											) : (
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-7 text-[10px] text-green-400 hover:text-green-300"
-													onClick={() => handleConnect(server)}
-													disabled={serverStatuses[server.id] === 'connecting'}
-												>
-													{serverStatuses[server.id] === 'connecting' ? (
-														<Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
-													) : (
-														<Power className="w-3.5 h-3.5 mr-1" />
-													)}
-													{t('mcp.connect')}
-												</Button>
-											)}
-											<Button
-												variant="ghost"
-												size="sm"
-												className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
-												onClick={() => openEditForm(server)}
-												disabled={serverStatuses[server.id] === 'connected' || serverStatuses[server.id] === 'connecting'}
-												title={t('mcp.edit')}
-											>
-												<Edit className="w-3.5 h-3.5" />
-											</Button>
-											<Button
-												variant="ghost"
-												size="sm"
-												className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400"
-												onClick={() => handleRemoveServer(server.id)}
-												title={t('query.close', { defaultValue: 'Delete' })}
-											>
-												<Trash2 className="w-3.5 h-3.5" />
-											</Button>
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-						))
 					)}
 				</TabsContent>
 
@@ -1014,6 +1014,7 @@ export function McpView() {
 					)}
 				</TabsContent>
 			</Tabs>
+
 			{/* Toast Notification */}
 			{toast && (
 				<div className="fixed top-4 right-4 z-[9999] animate-in slide-in-from-top-2 fade-in">
