@@ -1,6 +1,10 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import path from 'path'
 import fs from 'fs'
+
+// Disable SSL certificate verification for MCP HTTP connections (e.g. ClickUp, Asana)
+// This is needed because StreamableHTTPClientTransport uses Node.js fetch internally
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 import SwaggerParser from '@apidevtools/swagger-parser'
 import yaml from 'js-yaml'
@@ -8,6 +12,9 @@ import axios from 'axios'
 import https from 'https'
 import { getConnectionSecrets, setConnectionSecrets, deleteConnectionSecrets, getApiKeys, setApiKey } from './secureStore'
 import * as mcpManager from './mcpManager'
+
+// Inject browser opener for MCP OAuth
+mcpManager.setOpenExternalUrl((url: string) => shell.openExternal(url))
 
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = app.isPackaged ? process.env.DIST : path.join(process.env.DIST, '../public')
@@ -130,7 +137,6 @@ ipcMain.handle('open-file-dialog', async () => {
 })
 
 import express from 'express'
-import { shell } from 'electron'
 import type { Server } from 'http'
 
 // OAuth2 Handler

@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Trash2, Power, PowerOff, Play, Loader2, Server, Wrench, FolderOpen, Copy, Check, Edit, FileJson, Blocks, MessageSquare, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, Power, PowerOff, Play, Loader2, Server, Wrench, FolderOpen, Copy, Check, Edit, FileJson, Blocks, MessageSquare, Search, ExternalLink, CheckCircle2, X, ChevronDown, AlertCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { cn } from '@/lib/utils'
 import { AiQueryBar } from '@/components/AiQueryBar'
 import { CONNECTOR_PRESETS, type ConnectorPreset } from '@/lib/connectorPresets'
 
@@ -58,8 +59,32 @@ export function McpView() {
 
 	// Connector state
 	const [selectedPreset, setSelectedPreset] = useState<ConnectorPreset | null>(null)
-	const [connectorEnvValues, setConnectorEnvValues] = useState<Record<string, string>>({})
 	const [showPresetDropdown, setShowPresetDropdown] = useState(false)
+	const [connectorSearchQuery, setConnectorSearchQuery] = useState('')
+	const [connectingPreset, setConnectingPreset] = useState<ConnectorPreset | null>(null)
+	const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+	const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+		setToast({ message, type })
+		const duration = type === 'error' ? 5000 : 3000
+		setTimeout(() => setToast(null), duration)
+	}, [])
+
+	const filteredPresets = CONNECTOR_PRESETS.filter(preset => {
+		if (!connectorSearchQuery) return true
+		const q = connectorSearchQuery.toLowerCase()
+		return preset.name.toLowerCase().includes(q) || preset.description.toLowerCase().includes(q) || preset.category.toLowerCase().includes(q)
+	})
+
+	// Check if a connector preset is already connected
+	const isConnectorConnected = (presetId: string) => {
+		return mcpServers.some(s => s.id.startsWith(`connector-${presetId}-`))
+	}
+
+	const getConnectorServerId = (presetId: string) => {
+		const server = mcpServers.find(s => s.id.startsWith(`connector-${presetId}-`))
+		return server?.id
+	}
 
 	const resetForm = () => {
 		setName('')
@@ -232,9 +257,11 @@ export function McpView() {
 	}, [name, type, command, args, env, url, headers, isEditing, editingId, addMcpServer, updateMcpServer])
 
 	const handleConnect = useCallback(async (server: McpServerConfig) => {
+		console.log(`[MCP] Connecting to server: ${server.name} (${server.id})`)
 		setServerStatuses(prev => ({ ...prev, [server.id]: 'connecting' }))
 		try {
 			const result = await window.ipcRenderer.mcpConnect(server)
+			console.log(`[MCP] Connection result for ${server.name}:`, result)
 			setServerStatuses(prev => ({ ...prev, [server.id]: result.success ? 'connected' : 'error' }))
 			if (result.success) {
 				// Auto-load tools and resources
@@ -246,11 +273,16 @@ export function McpView() {
 					const r = await window.ipcRenderer.mcpListResources(server.id)
 					setResources(prev => ({ ...prev, [server.id]: r }))
 				} catch { /* server may not support resources */ }
+				showToast(`${server.name}${t('mcp.connectedToast', { defaultValue: 'に接続しました。' })}`, 'success')
+			} else {
+				showToast(`${server.name}: ${result.error || t('mcp.error')}`, 'error')
 			}
-		} catch {
+		} catch (err: any) {
+			console.error(`[MCP] Connection exception for ${server.name}:`, err)
 			setServerStatuses(prev => ({ ...prev, [server.id]: 'error' }))
+			showToast(`${server.name}: ${err.message || t('mcp.error')}`, 'error')
 		}
-	}, [])
+	}, [showToast, t])
 
 	const handleDisconnect = useCallback(async (serverId: string) => {
 		await window.ipcRenderer.mcpDisconnect(serverId)
@@ -304,37 +336,80 @@ export function McpView() {
 	// Connector handlers
 	const handleSelectPreset = (preset: ConnectorPreset) => {
 		setSelectedPreset(preset)
-		setConnectorEnvValues({})
 		setShowPresetDropdown(false)
 	}
 
-	const handleAddConnector = () => {
-		if (!selectedPreset) return
+	const handleConnectPreset = useCallback(async (preset: ConnectorPreset) => {
+		// Check if server entry already exists
+		const existingServerId = getConnectorServerId(preset.id)
+		const existingStatus = existingServerId ? serverStatuses[existingServerId] : undefined
 
-		const envObj: Record<string, string> = {}
-		for (const envKey of selectedPreset.mcpConfig.envKeys || []) {
-			const val = connectorEnvValues[envKey.key]
-			if (val && val.trim()) {
-				envObj[envKey.key] = val.trim()
+		// If already connected, do nothing
+		if (existingServerId && existingStatus === 'connected') return
+
+		let config: McpServerConfig
+
+		if (existingServerId) {
+			// Server entry exists but not connected - reuse it
+			const existingServer = mcpServers.find(s => s.id === existingServerId)
+			if (!existingServer) return
+			config = existingServer
+		} else {
+			// Create new server config
+			config = {
+				id: `connector-${preset.id}-${Date.now()}`,
+				name: preset.name,
+				type: preset.mcpConfig.type,
+				command: preset.mcpConfig.command,
+				args: preset.mcpConfig.args,
+				url: preset.mcpConfig.url,
 			}
+			addMcpServer(config)
 		}
 
-		const config: McpServerConfig = {
-			id: `connector-${selectedPreset.id}-${Date.now()}`,
-			name: selectedPreset.name,
-			type: selectedPreset.mcpConfig.type,
-			command: selectedPreset.mcpConfig.command,
-			args: selectedPreset.mcpConfig.args,
-			env: Object.keys(envObj).length > 0 ? envObj : undefined,
-			url: selectedPreset.mcpConfig.url,
-		}
-
-		addMcpServer(config)
+		// Start connecting
+		console.log(`[MCP] Connecting to preset: ${preset.name} (ID: ${config.id})`)
+		setConnectingPreset(preset)
 		setSelectedPreset(null)
-		setConnectorEnvValues({})
-		// Switch to servers tab to see the added connector
-		setActiveTab('servers')
-	}
+		setServerStatuses(prev => ({ ...prev, [config.id]: 'connecting' }))
+
+		try {
+			const result = await window.ipcRenderer.mcpConnect(config)
+			console.log(`[MCP] Preset connection result for ${preset.name}:`, result)
+			setServerStatuses(prev => ({ ...prev, [config.id]: result.success ? 'connected' : 'error' }))
+
+			if (result.success) {
+				// Auto-load tools and resources
+				try {
+					const toolsList = await window.ipcRenderer.mcpListTools(config.id)
+					setTools(prev => ({ ...prev, [config.id]: toolsList }))
+				} catch { /* server may not support tools */ }
+				try {
+					const r = await window.ipcRenderer.mcpListResources(config.id)
+					setResources(prev => ({ ...prev, [config.id]: r }))
+				} catch { /* server may not support resources */ }
+
+				// Show success toast
+				showToast(`${preset.name}${t('mcp.connectedToast', { defaultValue: 'に接続しました。' })}`, 'success')
+			} else {
+				// Connection failed
+				showToast(`${preset.name}: ${result.error || t('mcp.error')}`, 'error')
+			}
+		} catch (err: any) {
+			console.error(`[MCP] Preset connection exception for ${preset.name}:`, err)
+			setServerStatuses(prev => ({ ...prev, [config.id]: 'error' }))
+			showToast(`${preset.name}: ${err.message || t('mcp.error')}`, 'error')
+		} finally {
+			setConnectingPreset(null)
+		}
+	}, [addMcpServer, mcpServers, serverStatuses, t, showToast])
+
+	const handleDisconnectPreset = useCallback(async (presetId: string) => {
+		const serverId = getConnectorServerId(presetId)
+		if (!serverId) return
+		await handleDisconnect(serverId)
+		removeMcpServer(serverId)
+	}, [handleDisconnect, removeMcpServer])
 
 	const statusBadge = (status: McpServerStatus | undefined) => {
 		const s = status || 'disconnected'
@@ -562,7 +637,7 @@ export function McpView() {
 						<CardContent className="p-4 space-y-4">
 							<div className="relative">
 								<button
-									onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+									onClick={() => { setShowPresetDropdown(!showPresetDropdown); setConnectorSearchQuery('') }}
 									className="w-full flex items-center justify-between px-3 py-2.5 rounded-md border bg-background text-sm hover:bg-muted transition-colors"
 								>
 									<span className={selectedPreset ? 'text-foreground' : 'text-muted-foreground'}>
@@ -580,26 +655,55 @@ export function McpView() {
 								</button>
 
 								{showPresetDropdown && (
-									<div className="absolute z-50 w-full mt-1 rounded-md border bg-popover shadow-lg max-h-64 overflow-auto animate-in fade-in slide-in-from-top-1">
-										{CONNECTOR_PRESETS.map(preset => (
-											<button
-												key={preset.id}
-												onClick={() => handleSelectPreset(preset)}
-												className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted transition-colors text-left border-b last:border-b-0"
-											>
-												{preset.icon.startsWith('http') ? <img src={preset.icon} alt={preset.name} className="w-6 h-6 rounded-sm object-contain shrink-0" /> : <span className="text-xl shrink-0">{preset.icon}</span>}
-												<div className="flex-1 min-w-0">
-													<div className="font-medium">{preset.name}</div>
-													<div className="text-xs text-muted-foreground truncate">{preset.description}</div>
-												</div>
-												<Badge variant="outline" className="text-[9px] shrink-0">{preset.category}</Badge>
-											</button>
-										))}
+									<div className="absolute z-50 w-full mt-1 rounded-md border bg-popover shadow-lg max-h-80 flex flex-col animate-in fade-in slide-in-from-top-1">
+										<div className="p-2 border-b sticky top-0 bg-popover z-10">
+											<div className="relative">
+												<Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+												<Input
+													value={connectorSearchQuery}
+													onChange={e => setConnectorSearchQuery(e.target.value)}
+													placeholder={t('mcp.searchConnectors', { defaultValue: 'Search connectors...' })}
+													className="h-8 pl-8 text-xs"
+													autoFocus
+													onClick={e => e.stopPropagation()}
+												/>
+											</div>
+										</div>
+										<div className="overflow-auto flex-1">
+											{filteredPresets.length === 0 ? (
+												<div className="text-center py-6 text-sm text-muted-foreground">{t('mcp.noResults', { defaultValue: 'No connectors found' })}</div>
+											) : (
+												filteredPresets.map(preset => {
+													const connected = isConnectorConnected(preset.id)
+													return (
+														<button
+															key={preset.id}
+															onClick={() => handleSelectPreset(preset)}
+															className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted transition-colors text-left border-b last:border-b-0"
+														>
+															{preset.icon.startsWith('http') ? <img src={preset.icon} alt={preset.name} className="w-6 h-6 rounded-sm object-contain shrink-0" /> : <span className="text-xl shrink-0">{preset.icon}</span>}
+															<div className="flex-1 min-w-0">
+																<div className="font-medium">{preset.name}</div>
+																<div className="text-xs text-muted-foreground truncate">{preset.description}</div>
+															</div>
+															{connected ? (
+																<Badge className="bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30 text-[9px] gap-1 shrink-0">
+																	<CheckCircle2 className="w-3 h-3" />
+																	{t('mcp.connected')}
+																</Badge>
+															) : (
+																<Badge variant="outline" className="text-[9px] shrink-0">{preset.category}</Badge>
+															)}
+														</button>
+													)
+												})
+											)}
+										</div>
 									</div>
 								)}
 							</div>
 
-							{/* Connector Config Form */}
+							{/* Selected Connector Info + Connect Button */}
 							{selectedPreset && (
 								<div className="space-y-3 pt-2 border-t animate-in fade-in slide-in-from-top-2">
 									<div className="flex items-center gap-2">
@@ -608,48 +712,66 @@ export function McpView() {
 											<h3 className="font-semibold text-sm">{selectedPreset.name}</h3>
 											<p className="text-xs text-muted-foreground">{selectedPreset.description}</p>
 										</div>
+										{selectedPreset.mcpConfig.type === 'http' && (
+											<Badge variant="outline" className="ml-auto text-[9px] text-blue-500 border-blue-500/30 bg-blue-500/10">OAuth</Badge>
+										)}
 									</div>
 
-									{selectedPreset.mcpConfig.envKeys && selectedPreset.mcpConfig.envKeys.length > 0 && (
-										<div className="space-y-2">
-											<p className="text-xs text-muted-foreground">{t('mcp.configureEnv')}</p>
-											{selectedPreset.mcpConfig.envKeys.map(envKey => (
-												<div key={envKey.key} className="grid gap-1">
-													<label className="text-xs font-medium flex items-center gap-1">
-														{envKey.label}
-														{envKey.required && <span className="text-red-500">*</span>}
-														<span className="text-[10px] text-muted-foreground font-mono">({envKey.key})</span>
-													</label>
-													<Input
-														type={envKey.secret ? 'password' : 'text'}
-														value={connectorEnvValues[envKey.key] || ''}
-														onChange={e => setConnectorEnvValues(prev => ({ ...prev, [envKey.key]: e.target.value }))}
-														placeholder={envKey.placeholder}
-														className="h-8 text-sm font-mono"
-													/>
-												</div>
-											))}
-										</div>
-									)}
-
 									<div className="flex items-center justify-between pt-2">
-										<div className="text-[10px] text-muted-foreground font-mono">
-											{selectedPreset.mcpConfig.command} {(selectedPreset.mcpConfig.args || []).join(' ')}
+										<div className="text-[10px] text-muted-foreground">
+											{selectedPreset.mcpConfig.url || selectedPreset.mcpConfig.command || ''}
 										</div>
 										<div className="flex gap-2">
 											<Button variant="ghost" size="sm" onClick={() => setSelectedPreset(null)}>
 												{t('query.close', { defaultValue: 'Cancel' })}
 											</Button>
-											<Button size="sm" onClick={handleAddConnector}>
-												<Plus className="w-3.5 h-3.5 mr-1" />
-												{t('mcp.addConnector')}
-											</Button>
+											{isConnectorConnected(selectedPreset.id) ? (
+												<Button size="sm" variant="destructive" className="text-xs" onClick={() => { handleDisconnectPreset(selectedPreset.id); setSelectedPreset(null) }}>
+													<PowerOff className="w-3.5 h-3.5 mr-1" />
+													{t('mcp.disconnect')}
+												</Button>
+											) : selectedPreset.mcpConfig.url ? (
+												<Button size="sm" className="text-xs" onClick={() => handleConnectPreset(selectedPreset)}>
+													<ExternalLink className="w-3.5 h-3.5 mr-1" />
+													{t('mcp.connectAction', { defaultValue: '連携' })}
+												</Button>
+											) : (
+												<Badge variant="outline" className="text-xs text-muted-foreground py-1">
+													{t('mcp.comingSoon', { defaultValue: '準備中' })}
+												</Badge>
+											)}
 										</div>
 									</div>
 								</div>
 							)}
 						</CardContent>
 					</Card>
+
+					{/* Connecting Modal */}
+					{connectingPreset && (
+						<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-in fade-in">
+							<Card className="w-[400px] shadow-2xl animate-in zoom-in-95">
+								<CardContent className="p-6 text-center space-y-4">
+									<div className="w-14 h-14 rounded-xl bg-muted/50 flex items-center justify-center mx-auto overflow-hidden">
+										{connectingPreset.icon.startsWith('http') ? (
+											<img src={connectingPreset.icon} alt={connectingPreset.name} className="w-10 h-10 rounded object-contain" />
+										) : (
+											<span className="text-3xl">{connectingPreset.icon}</span>
+										)}
+									</div>
+									<div>
+										<h3 className="font-semibold text-lg">
+											{connectingPreset.name}{t('mcp.authModalTitle', { defaultValue: 'へのアクセスを許可' })}
+										</h3>
+										<p className="text-sm text-muted-foreground mt-1">
+											{t('mcp.authModalDesc', { defaultValue: '新しいタブでサインインを完了してください。' })}
+										</p>
+									</div>
+									<Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+								</CardContent>
+							</Card>
+						</div>
+					)}
 				</TabsContent>
 
 				{/* Servers Tab */}
@@ -892,6 +1014,25 @@ export function McpView() {
 					)}
 				</TabsContent>
 			</Tabs>
+			{/* Toast Notification */}
+			{toast && (
+				<div className="fixed top-4 right-4 z-[9999] animate-in slide-in-from-top-2 fade-in">
+					<div className={cn(
+						"flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg text-sm",
+						toast.type === 'success' ? "bg-popover border-green-500/30" : "bg-destructive text-destructive-foreground border-destructive/50"
+					)}>
+						{toast.type === 'success' ? (
+							<CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+						) : (
+							<AlertCircle className="w-4 h-4 shrink-0" />
+						)}
+						<span>{toast.message}</span>
+						<button onClick={() => setToast(null)} className="ml-2 hover:opacity-70 transition-opacity">
+							<X className="w-3.5 h-3.5" />
+						</button>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }
