@@ -6,7 +6,7 @@ const resources = {
 	en: {
 		translation: {
 			sidebar: {
-				connections: 'Connections',
+				connections: 'API Connections',
 				query: 'Query',
 				settings: 'Settings',
 				askAi: 'Ask AI',
@@ -168,7 +168,7 @@ const resources = {
 	ja: {
 		translation: {
 			sidebar: {
-				connections: '接続管理',
+				connections: 'API接続管理',
 				query: 'クエリ実行',
 				settings: '設定',
 				askAi: 'AIに相談',

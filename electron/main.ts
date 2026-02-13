@@ -334,6 +334,10 @@ ipcMain.handle('mcp:connect', async (_, config) => {
 	return mcpManager.connectServer(config)
 })
 
+ipcMain.handle('mcp:cancel-connect', async () => {
+	await mcpManager.cancelConnect()
+})
+
 ipcMain.handle('mcp:disconnect', async (_, serverId: string) => {
 	await mcpManager.disconnectServer(serverId)
 })

@@ -98,6 +98,9 @@ class ElectronOAuthProvider implements OAuthClientProvider {
 // ---- OAuth callback server ----
 
 let activeCallbackServer: http.Server | null = null
+let pendingOAuthReject: ((reason?: any) => void) | null = null
+
+// ---- OAuth callback server ----
 
 /**
  * Starts a temporary HTTP server to receive the OAuth callback.
@@ -107,9 +110,11 @@ function waitForOAuthCallback(): Promise<string> {
 	return new Promise((resolve, reject) => {
 		// Close any existing server
 		if (activeCallbackServer) {
+			if (pendingOAuthReject) pendingOAuthReject(new Error('Auth cancelled by new request'))
 			activeCallbackServer.close()
 			activeCallbackServer = null
 		}
+		pendingOAuthReject = reject
 
 		const server = http.createServer((req, res) => {
 			if (req.url === '/favicon.ico') {
@@ -136,6 +141,7 @@ function waitForOAuthCallback(): Promise<string> {
 					</html>
 				`)
 				resolve(code)
+				pendingOAuthReject = null
 				setTimeout(() => {
 					server.close()
 					if (activeCallbackServer === server) activeCallbackServer = null
@@ -153,6 +159,7 @@ function waitForOAuthCallback(): Promise<string> {
 					</html>
 				`)
 				reject(new Error(`OAuth authorization failed: ${error}`))
+				pendingOAuthReject = null
 				server.close()
 				if (activeCallbackServer === server) activeCallbackServer = null
 			} else {
@@ -167,15 +174,33 @@ function waitForOAuthCallback(): Promise<string> {
 
 		activeCallbackServer = server
 
-		// Timeout after 5 minutes
+		// Timeout after 3 minutes (increased from 1)
 		setTimeout(() => {
 			if (activeCallbackServer === server) {
 				server.close()
 				activeCallbackServer = null
-				reject(new Error('OAuth callback timeout (5 minutes)'))
+				if (pendingOAuthReject === reject) {
+					reject(new Error('OAuth callback timeout (3 minutes)'))
+					pendingOAuthReject = null
+				}
 			}
-		}, 5 * 60 * 1000)
+		}, 180 * 1000)
 	})
+}
+
+/**
+ * Forcefully cancels any pending connection attempt.
+ */
+export async function cancelConnect(): Promise<void> {
+	if (activeCallbackServer) {
+		console.log('[MCP] Cancelling pending connection...')
+		if (pendingOAuthReject) {
+			pendingOAuthReject(new Error('Auth cancelled by user'))
+			pendingOAuthReject = null
+		}
+		activeCallbackServer.close()
+		activeCallbackServer = null
+	}
 }
 
 // ---- Server Management ----

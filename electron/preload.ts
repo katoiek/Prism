@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 
 	// MCP Server Client
 	mcpConnect: (config: any) => ipcRenderer.invoke('mcp:connect', config),
+	mcpCancelConnect: () => ipcRenderer.invoke('mcp:cancel-connect'),
 	mcpDisconnect: (serverId: string) => ipcRenderer.invoke('mcp:disconnect', serverId),
 	mcpListTools: (serverId: string) => ipcRenderer.invoke('mcp:list-tools', serverId),
 	mcpCallTool: (serverId: string, name: string, args?: any) => ipcRenderer.invoke('mcp:call-tool', serverId, name, args),

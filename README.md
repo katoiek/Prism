@@ -10,9 +10,10 @@ Prism is a modern, high-performance desktop application designed for developers 
 
 - 📄 **OpenAPI/Swagger Explorer** - Seamlessly load and browse API specifications from URLs or local files (JSON/YAML).
 - 🔐 **Secure Connection Management** - Manage multiple API connections with OAuth2 or API Token authentication. Sensitive data like Client Secrets and Tokens are stored in a secure, encrypted local store.
+- 🔌 **Model Context Protocol (MCP) Support** - Connect to MCP servers to extend Prism's capabilities. Support for both Stdio and HTTP transports with OAuth flow.
 - 📊 **Dynamic Data Rendering** - View API responses in a powerful AG Grid table or a formatted JSON viewer. Handle large datasets with ease.
 - 📥 **Enterprise-ready Export** - Export your API results directly to Excel for further analysis or reporting.
-- 🤖 **AI-Powered Request Assistant** - Leverage OpenAI, Anthropic, or Google Gemini to automatically populate request parameters and generate smart payloads.
+- 🤖 **AI-Powered Request Assistant** - Leverage OpenAI, Anthropic, or Google Gemini to automatically populate request parameters and generate smart payloads. Also integrates with MCP tools.
 - 🌐 **Localized Interface** - Full support for both English and Japanese languages.
 
 ## 🚀 Verified Integrations
@@ -25,6 +26,17 @@ Prism has been tested extensively with major SaaS platforms to ensure compatibil
 | **ClickUp** | Productivity | [Official Spec](https://developer.clickup.com/docs/open-api-spec) |
 | **Notion** | Knowledge Base | [Community maintained Spec](https://github.com/cameronking4/notion-openapi-chatgpt-action) |
 | **freee** | ERP/Accounting | Official freee-api-schema |
+
+## 🔌 Verified MCP Connectors
+
+Prism includes pre-configured connectors for popular MCP servers:
+
+| Service | Protocol | Capabilities |
+|---------|----------|--------------|
+| **ClickUp** | HTTP (OAuth) | Task management, Time tracking |
+| **Linear** | HTTP (OAuth) | Issue tracking |
+| **Circleback** | HTTP (OAuth) | Meeting notes, CRM integration |
+| **Local FileSystem** | Stdio | Browse and read local files |
 
 ## 🛠 Getting Started
 
@@ -85,9 +97,10 @@ Prismは、OpenAPI (Swagger) 仕様を使用してAPIの探索、テスト、連
 
 - 📄 **OpenAPI/Swagger エクスプローラー** - URLまたはローカルファイル（JSON/YAML）からAPI仕様を簡単に読み込み、閲覧。
 - 🔐 **セキュアな接続管理** - OAuth2またはAPIトークン認証を使用した複数のAPI接続を管理。クライアントシークレットやトークンなどの機密データは、暗号化されたローカルストレージに安全に保管されます。
+- 🔌 **Model Context Protocol (MCP) 対応** - MCPサーバーに接続して機能を拡張。StdioおよびHTTPトランスポート（OAuthフロー）をサポート。
 - 📊 **動的なデータレンダリング** - 高機能なAG Gridテーブルまたは整形されたJSONビューでレスポンスを確認。大規模なデータセットもスムーズに処理。
 - 📥 **エクスポート機能** - API実行結果をExcel形式で直接出力し、分析やレポート作成に活用可能。
-- 🤖 **AIリクエストアシスタント** - OpenAI、Anthropic、Google Geminiと連携し、リクエストパラメータの自動生成やスマートなペイロード構築を支援。
+- 🤖 **AIリクエストアシスタント** - OpenAI、Anthropic、Google Geminiと連携し、リクエストパラメータの自動生成やスマートなペイロード構築を支援。MCPツールとの連携も可能。
 - 🌐 **多言語対応** - 日本語と英語のUIを完全サポート。
 
 ## 🚀 動作確認済みプロジェクト
@@ -100,6 +113,17 @@ Prismは、OpenAPI (Swagger) 仕様を使用してAPIの探索、テスト、連
 | **ClickUp** | 生産性ツール | [公式 Spec](https://developer.clickup.com/docs/open-api-spec) |
 | **Notion** | ナレッジベース | [コミュニティ維持 Spec](https://github.com/cameronking4/notion-openapi-chatgpt-action) |
 | **freee** | ERP/会計 | 公式 freee-api-schema |
+
+## 🔌 設定済み MCP コネクタ
+
+Prismは、主要なMCPサーバー用のコネクタをプリセットとして提供しています：
+
+| サービス | プロトコル | 主な機能 |
+|----------|------------|----------|
+| **ClickUp** | HTTP (OAuth) | タスク管理、時間記録 |
+| **Linear** | HTTP (OAuth) | イシュー管理 |
+| **Circleback** | HTTP (OAuth) | ミーティングノート、CRM連携 |
+| **ローカルファイルシステム** | Stdio | ローカルファイルの閲覧・読み取り |
 
 ## 🛠 はじめかた
 

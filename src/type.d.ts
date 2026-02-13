@@ -13,6 +13,7 @@ export interface IpcRenderer {
 
 	// MCP Server Client
 	mcpConnect: (config: any) => Promise<any>
+	mcpCancelConnect: () => Promise<void>
 	mcpDisconnect: (serverId: string) => Promise<void>
 	mcpListTools: (serverId: string) => Promise<any[]>
 	mcpCallTool: (serverId: string, name: string, args?: any) => Promise<any>

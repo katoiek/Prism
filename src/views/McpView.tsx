@@ -14,6 +14,8 @@ import { CONNECTOR_PRESETS, type ConnectorPreset } from '@/lib/connectorPresets'
 
 type McpServerStatus = 'connected' | 'disconnected' | 'connecting' | 'error'
 
+const ENABLED_CONNECTOR_IDS = ['clickup', 'linear', 'circleback'] as const
+
 export function McpView() {
 	const { t } = useTranslation()
 	const { mcpServers, addMcpServer, updateMcpServer, removeMcpServer } = useAppStore()
@@ -83,11 +85,13 @@ export function McpView() {
 		setTimeout(() => setToast(null), duration)
 	}, [])
 
-	const filteredPresets = CONNECTOR_PRESETS.filter(preset => {
-		if (!connectorSearchQuery) return true
-		const q = connectorSearchQuery.toLowerCase()
-		return preset.name.toLowerCase().includes(q) || preset.description.toLowerCase().includes(q) || preset.category.toLowerCase().includes(q)
-	})
+	const filteredPresets = CONNECTOR_PRESETS
+		.filter(preset => ENABLED_CONNECTOR_IDS.includes(preset.id as any))
+		.filter(preset => {
+			if (!connectorSearchQuery) return true
+			const q = connectorSearchQuery.toLowerCase()
+			return preset.name.toLowerCase().includes(q) || preset.description.toLowerCase().includes(q) || preset.category.toLowerCase().includes(q)
+		})
 
 	// Check if a connector preset is already connected
 	const isConnectorConnected = (presetId: string) => {
@@ -368,7 +372,7 @@ export function McpView() {
 			if (!existingServer) return
 			config = existingServer
 		} else {
-			// Create new server config
+			// Create new server config (not added to store yet)
 			config = {
 				id: `connector-${preset.id}-${Date.now()}`,
 				name: preset.name,
@@ -377,7 +381,6 @@ export function McpView() {
 				args: preset.mcpConfig.args,
 				url: preset.mcpConfig.url,
 			}
-			addMcpServer(config)
 		}
 
 		// Start connecting
@@ -389,9 +392,13 @@ export function McpView() {
 		try {
 			const result = await window.ipcRenderer.mcpConnect(config)
 			console.log(`[MCP] Preset connection result for ${preset.name}:`, result)
-			setServerStatuses(prev => ({ ...prev, [config.id]: result.success ? 'connected' : 'error' }))
 
 			if (result.success) {
+				// REGISTER ONLY ON SUCCESS
+				if (!existingServerId) {
+					addMcpServer(config)
+				}
+				setServerStatuses(prev => ({ ...prev, [config.id]: 'connected' }))
 				// Auto-load tools and resources
 				try {
 					const toolsList = await window.ipcRenderer.mcpListTools(config.id)
@@ -416,6 +423,11 @@ export function McpView() {
 			setConnectingPreset(null)
 		}
 	}, [addMcpServer, mcpServers, serverStatuses, t, showToast])
+
+	const handleCancelConnect = useCallback(async () => {
+		await window.ipcRenderer.mcpCancelConnect()
+		setConnectingPreset(null)
+	}, [])
 
 	const handleDisconnectPreset = useCallback(async (presetId: string) => {
 		const serverId = getConnectorServerId(presetId)
@@ -742,6 +754,11 @@ export function McpView() {
 														<PowerOff className="w-3.5 h-3.5 mr-1" />
 														{t('mcp.disconnect')}
 													</Button>
+												) : connectingPreset?.id === selectedPreset.id ? (
+													<Button size="sm" variant="outline" className="text-xs gap-2" onClick={handleCancelConnect}>
+														<Loader2 className="w-3.5 h-3.5 animate-spin" />
+														{t('query.close', { defaultValue: 'Cancel' })}
+													</Button>
 												) : selectedPreset.mcpConfig.url ? (
 													<Button size="sm" className="text-xs" onClick={() => handleConnectPreset(selectedPreset)}>
 														<ExternalLink className="w-3.5 h-3.5 mr-1" />
@@ -848,6 +865,11 @@ export function McpView() {
 										</p>
 									</div>
 									<Loader2 className="w-6 h-6 animate-spin mx-auto text-primary" />
+									<div className="pt-2">
+										<Button variant="outline" size="sm" className="w-full" onClick={handleCancelConnect}>
+											{t('query.close', { defaultValue: 'Cancel' })}
+										</Button>
+									</div>
 								</CardContent>
 							</Card>
 						</div>
@@ -1016,24 +1038,26 @@ export function McpView() {
 			</Tabs>
 
 			{/* Toast Notification */}
-			{toast && (
-				<div className="fixed top-4 right-4 z-[9999] animate-in slide-in-from-top-2 fade-in">
-					<div className={cn(
-						"flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg text-sm",
-						toast.type === 'success' ? "bg-popover border-green-500/30" : "bg-destructive text-destructive-foreground border-destructive/50"
-					)}>
-						{toast.type === 'success' ? (
-							<CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-						) : (
-							<AlertCircle className="w-4 h-4 shrink-0" />
-						)}
-						<span>{toast.message}</span>
-						<button onClick={() => setToast(null)} className="ml-2 hover:opacity-70 transition-opacity">
-							<X className="w-3.5 h-3.5" />
-						</button>
+			{
+				toast && (
+					<div className="fixed top-4 right-4 z-[9999] animate-in slide-in-from-top-2 fade-in">
+						<div className={cn(
+							"flex items-center gap-2 px-4 py-3 rounded-lg border shadow-lg text-sm",
+							toast.type === 'success' ? "bg-popover border-green-500/30" : "bg-destructive text-destructive-foreground border-destructive/50"
+						)}>
+							{toast.type === 'success' ? (
+								<CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+							) : (
+								<AlertCircle className="w-4 h-4 shrink-0" />
+							)}
+							<span>{toast.message}</span>
+							<button onClick={() => setToast(null)} className="ml-2 hover:opacity-70 transition-opacity">
+								<X className="w-3.5 h-3.5" />
+							</button>
+						</div>
 					</div>
-				</div>
-			)}
-		</div>
+				)
+			}
+		</div >
 	)
 }
