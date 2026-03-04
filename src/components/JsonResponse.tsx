@@ -3,10 +3,30 @@ import { useTranslation } from 'react-i18next'
 interface JsonResponseProps {
 	data: any
 	headers?: any
+	searchQuery?: string
 }
 
-export function JsonResponse({ data, headers }: JsonResponseProps) {
+export function JsonResponse({ data, headers, searchQuery }: JsonResponseProps) {
 	const { t } = useTranslation()
+
+	const highlightText = (text: string, query?: string) => {
+		if (!query) return text
+
+		const parts = text.split(new RegExp(`(${query})`, 'gi'))
+		return (
+			<>
+				{parts.map((part, index) =>
+					part.toLowerCase() === query.toLowerCase() ? (
+						<mark key={index} className="bg-yellow-400/80 text-black rounded-sm px-0.5">
+							{part}
+						</mark>
+					) : (
+						part
+					)
+				)}
+			</>
+		)
+	}
 
 	return (
 		<div className="h-full w-full overflow-hidden min-w-0">
@@ -18,7 +38,7 @@ export function JsonResponse({ data, headers }: JsonResponseProps) {
 								{t('query.headers', { defaultValue: 'Headers' })}
 							</h4>
 							<pre className="bg-muted/50 border rounded-md p-3 overflow-auto max-h-[150px] text-[10px] whitespace-pre-wrap break-all">
-								{JSON.stringify(headers, null, 2)}
+								{highlightText(JSON.stringify(headers, null, 2), searchQuery)}
 							</pre>
 						</div>
 					)}
@@ -27,7 +47,7 @@ export function JsonResponse({ data, headers }: JsonResponseProps) {
 							{t('query.body', { defaultValue: 'Body' })}
 						</h4>
 						<pre className="bg-muted/50 border rounded-md p-3 overflow-auto max-h-[70vh] whitespace-pre-wrap break-all">
-							{JSON.stringify(data, null, 2)}
+							{highlightText(JSON.stringify(data, null, 2), searchQuery)}
 						</pre>
 					</div>
 				</div>

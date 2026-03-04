@@ -11,9 +11,11 @@ import { AiQueryBar } from '@/components/AiQueryBar'
 import { ConnectionSettings } from '@/components/ConnectionSettings'
 import { JsonResponse } from '@/components/JsonResponse'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
 import { useTranslation } from 'react-i18next'
 import { flattenObject, extractDataArray } from '@/lib/jsonUtils'
 import * as XLSX from 'xlsx'
+import { Search } from 'lucide-react'
 
 export function QueryView() {
 	const { t } = useTranslation()
@@ -23,6 +25,7 @@ export function QueryView() {
 	const [error, setError] = useState<string | null>(null)
 	const [isSettingsExpanded, setIsSettingsExpanded] = useState(false)
 	const [viewMode, setViewMode] = useState<'table' | 'json'>('table')
+	const [searchQuery, setSearchQuery] = useState('')
 
 	const connection = connections.find(c => c.id === selectedConnectionId)
 	const endpoint = connection?.specContent?.endpoints.find(
@@ -243,6 +246,16 @@ export function QueryView() {
 												</TabsTrigger>
 											</TabsList>
 											<div className="flex items-center gap-3 shrink-0">
+												<div className="relative">
+													<Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+													<Input
+														type="text"
+														placeholder={t('common.search', { defaultValue: 'Search...' })}
+														value={searchQuery}
+														onChange={(e) => setSearchQuery(e.target.value)}
+														className="h-7 pl-8 pr-2 text-[11px] w-[150px] md:w-[200px]"
+													/>
+												</div>
 												<Button
 													variant="outline"
 													size="sm"
@@ -271,10 +284,10 @@ export function QueryView() {
 										</div>
 										<div className="flex-1 overflow-hidden min-w-0 w-full">
 											<TabsContent active={viewMode === 'table'} className="h-full w-full flex flex-col">
-												<ResponseGrid data={response.data} />
+												<ResponseGrid data={response.data} searchQuery={searchQuery} />
 											</TabsContent>
 											<TabsContent active={viewMode === 'json'} className="h-full w-full flex flex-col">
-												<JsonResponse data={response.data} headers={response.headers} />
+												<JsonResponse data={response.data} headers={response.headers} searchQuery={searchQuery} />
 											</TabsContent>
 										</div>
 									</Tabs>
