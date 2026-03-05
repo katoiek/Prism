@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { ApiRequestForm } from '@/components/ApiRequestForm'
-import { ResponseGrid } from '@/components/ResponseGrid'
+import { ResponseGrid, type ExactMatchInfo } from '@/components/ResponseGrid'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
@@ -30,6 +30,7 @@ export function QueryView() {
 	const [activeMatchIdx, setActiveMatchIdx] = useState<number>(0)
 	const [totalMatches, setTotalMatches] = useState<number>(0)
 	const [matchPositions, setMatchPositions] = useState<number[]>([])
+	const [exactMatches, setExactMatches] = useState<ExactMatchInfo[]>([])
 	const [gridApi, setGridApi] = useState<any>(null)
 
 	// Debounce search query to prevent heavy rendering on every keystroke
@@ -55,28 +56,23 @@ export function QueryView() {
 
 	// Scroll the grid to the active match if in table mode
 	useEffect(() => {
-		if (viewMode === 'table' && gridApi && totalMatches > 0 && matchPositions.length > 0) {
-			// In table mode, matchPositions stores percentages, we need to map that back to row index.
-			// However, since activeMatchIdx is the Nth match globally, and matchPositions is an array of
-			// relative row percentages where matches occurred, we'll just scroll to the row representing that percentage.
-
-			// If we have less positions than totalMatches (multiple matches per row),
-			// we approximate which row to scroll to based on the active index ratio.
-			const posIdx = Math.min(
-				Math.floor((activeMatchIdx / totalMatches) * matchPositions.length),
-				matchPositions.length - 1
-			)
-			const parentPercentage = matchPositions[posIdx] || 0
-			const rowCount = gridApi.getDisplayedRowCount()
-			const rowIndex = Math.floor((parentPercentage / 100) * rowCount)
-
-			gridApi.ensureIndexVisible(rowIndex, 'middle')
+		if (viewMode === 'table' && gridApi && totalMatches > 0 && exactMatches.length > 0) {
+			const activeMatch = exactMatches[activeMatchIdx]
+			if (activeMatch) {
+				// Vertical scroll
+				gridApi.ensureIndexVisible(activeMatch.rowIndex, 'middle')
+				// Horizontal scroll
+				gridApi.ensureColumnVisible(activeMatch.colId)
+				// Visible cursor indicator inside the grid
+				gridApi.setFocusedCell(activeMatch.rowIndex, activeMatch.colId)
+			}
 		}
-	}, [activeMatchIdx, viewMode, gridApi, matchPositions, totalMatches])
+	}, [activeMatchIdx, viewMode, gridApi, exactMatches, totalMatches])
 
-	const handleMatchesFound = useCallback((matches: { positions: number[], count: number }) => {
+	const handleMatchesFound = useCallback((matches: { positions: number[], count: number, exactMatches?: ExactMatchInfo[] }) => {
 		setMatchPositions(matches.positions)
 		setTotalMatches(matches.count)
+		setExactMatches(matches.exactMatches || [])
 		// activeMatchIdx is kept as is, but bounded defensively on display
 	}, [])
 

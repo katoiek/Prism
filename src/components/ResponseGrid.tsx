@@ -27,11 +27,16 @@ ModuleRegistry.registerModules([
 	ValidationModule
 ])
 
+export interface ExactMatchInfo {
+	rowIndex: number
+	colId: string
+}
+
 interface ResponseGridProps {
 	data: any
 	searchQuery?: string
 	onGridReady?: (api: any) => void
-	onMatchesFound?: (matches: { positions: number[], count: number }) => void
+	onMatchesFound?: (matches: { positions: number[], count: number, exactMatches?: ExactMatchInfo[] }) => void
 }
 
 export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }: ResponseGridProps) {
@@ -48,32 +53,33 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 	// Calculate matches whenever data or searchQuery changes
 	useMemo(() => {
 		if (!searchQuery || !onMatchesFound || rowData.length === 0) {
-			onMatchesFound?.({ positions: [], count: 0 })
+			onMatchesFound?.({ positions: [], count: 0, exactMatches: [] })
 			return
 		}
 
 		let count = 0
 		const positions: number[] = []
-		const query = searchQuery.toLowerCase()
+		const exactMatches: ExactMatchInfo[] = []
+		// Escape regex special chars for accurate string matching
+		const query = searchQuery.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 		rowData.forEach((row, idx) => {
-			let foundInRow = false
-			Object.values(row).forEach(val => {
+			Object.entries(row).forEach(([key, val]) => {
 				if (val === null || val === undefined) return
 				const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
-				const matchesInText = (text.toLowerCase().match(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
+				const matchesInText = (text.toLowerCase().match(new RegExp(query, 'g')) || []).length
 				if (matchesInText > 0) {
+					for (let i = 0; i < matchesInText; i++) {
+						// Record the relative position of this individual match (0 - 100%)
+						positions.push((idx / rowData.length) * 100)
+						exactMatches.push({ rowIndex: idx, colId: key })
+					}
 					count += matchesInText
-					foundInRow = true
 				}
 			})
-			if (foundInRow) {
-				// Record the relative position of this row (0 - 100%)
-				positions.push((idx / rowData.length) * 100)
-			}
 		})
 
-		onMatchesFound({ positions, count })
+		onMatchesFound({ positions, count, exactMatches })
 	}, [rowData, searchQuery, onMatchesFound])
 
 	const columnDefs = useMemo<ColDef[]>(() => {
