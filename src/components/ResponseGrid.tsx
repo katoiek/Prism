@@ -67,14 +67,11 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 			Object.entries(row).forEach(([key, val]) => {
 				if (val === null || val === undefined) return
 				const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
-				const matchesInText = (text.toLowerCase().match(new RegExp(query, 'g')) || []).length
-				if (matchesInText > 0) {
-					for (let i = 0; i < matchesInText; i++) {
-						// Record the relative position of this individual match (0 - 100%)
-						positions.push((idx / rowData.length) * 100)
-						exactMatches.push({ rowIndex: idx, colId: key })
-					}
-					count += matchesInText
+				if (text.toLowerCase().includes(query)) {
+					// Add one match position per matching cell to avoid being stuck navigating multiple hits in the same cell
+					positions.push((idx / rowData.length) * 100)
+					exactMatches.push({ rowIndex: idx, colId: key })
+					count++
 				}
 			})
 		})
@@ -147,7 +144,13 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 	}), [])
 
 	return (
-		<div className="h-full w-full overflow-hidden p-4 min-w-0">
+		<div className="h-full w-full overflow-hidden p-4 min-w-0 flex flex-col relative">
+			<style>{`
+				.ag-theme-quartz-dark .ag-cell-focus {
+					border: 2px solid #3b82f6 !important;
+					background-color: rgba(59, 130, 246, 0.1) !important;
+				}
+			`}</style>
 			<div className="ag-theme-quartz-dark h-full w-full min-w-0">
 				<AgGridReact
 					rowData={rowData}
