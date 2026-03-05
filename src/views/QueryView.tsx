@@ -32,7 +32,7 @@ export function QueryView() {
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setSearchQuery(searchInput)
-		}, 300)
+		}, 500)
 		return () => clearTimeout(timer)
 	}, [searchInput])
 

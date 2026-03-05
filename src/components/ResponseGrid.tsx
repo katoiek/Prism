@@ -59,6 +59,27 @@ export function ResponseGrid({ data, searchQuery }: ResponseGridProps) {
 				if (val === null || val === undefined) return ''
 				return typeof val === 'object' ? JSON.stringify(val) : String(val)
 			},
+			cellRenderer: (params: any) => {
+				const val = params.value
+				if (val === null || val === undefined) return ''
+				const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
+				if (!searchQuery) return text
+
+				const parts = text.split(new RegExp(`(${searchQuery})`, 'gi'))
+				return (
+					<span>
+						{parts.map((part, index) =>
+							part.toLowerCase() === searchQuery.toLowerCase() ? (
+								<mark key={index} className="bg-yellow-400/80 text-black px-0.5 rounded-sm">
+									{part}
+								</mark>
+							) : (
+								part
+							)
+						)}
+					</span>
+				)
+			},
 			sortable: true,
 			filter: true,
 			resizable: true,
