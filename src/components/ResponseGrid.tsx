@@ -31,9 +31,10 @@ interface ResponseGridProps {
 	data: any
 	searchQuery?: string
 	onGridReady?: (api: any) => void
+	onMatchesFound?: (matches: { positions: number[], count: number }) => void
 }
 
-export function ResponseGrid({ data, searchQuery, onGridReady }: ResponseGridProps) {
+export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }: ResponseGridProps) {
 	const rawArray = useMemo(() => extractDataArray(data), [data])
 
 	// Robust Flattening: Always flatten objects to ensure consistent keys
@@ -43,6 +44,37 @@ export function ResponseGrid({ data, searchQuery, onGridReady }: ResponseGridPro
 			return flattenObject(item)
 		})
 	}, [rawArray])
+
+	// Calculate matches whenever data or searchQuery changes
+	useMemo(() => {
+		if (!searchQuery || !onMatchesFound || rowData.length === 0) {
+			onMatchesFound?.({ positions: [], count: 0 })
+			return
+		}
+
+		let count = 0
+		const positions: number[] = []
+		const query = searchQuery.toLowerCase()
+
+		rowData.forEach((row, idx) => {
+			let foundInRow = false
+			Object.values(row).forEach(val => {
+				if (val === null || val === undefined) return
+				const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
+				const matchesInText = (text.toLowerCase().match(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length
+				if (matchesInText > 0) {
+					count += matchesInText
+					foundInRow = true
+				}
+			})
+			if (foundInRow) {
+				// Record the relative position of this row (0 - 100%)
+				positions.push((idx / rowData.length) * 100)
+			}
+		})
+
+		onMatchesFound({ positions, count })
+	}, [rowData, searchQuery, onMatchesFound])
 
 	const columnDefs = useMemo<ColDef[]>(() => {
 		if (rowData.length === 0) return []

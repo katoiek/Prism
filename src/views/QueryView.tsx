@@ -10,7 +10,7 @@ import { Table, Code, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import { AiQueryBar } from '@/components/AiQueryBar'
 import { ConnectionSettings } from '@/components/ConnectionSettings'
 import { JsonResponse } from '@/components/JsonResponse'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { useTranslation } from 'react-i18next'
 import { flattenObject, extractDataArray } from '@/lib/jsonUtils'
@@ -26,56 +26,61 @@ export function QueryView() {
 	const [isSettingsExpanded, setIsSettingsExpanded] = useState(false)
 	const [viewMode, setViewMode] = useState<'table' | 'json'>('table')
 	const [searchInput, setSearchInput] = useState('')
-	const [gridApi, setGridApi] = useState<any>(null)
-	const [currentMatchIdx, setCurrentMatchIdx] = useState<number>(0)
-	const [matchedRows, setMatchedRows] = useState<number[]>([])
 	const [searchQuery, setSearchQuery] = useState('')
+	const [activeMatchIdx, setActiveMatchIdx] = useState<number>(0)
+	const [totalMatches, setTotalMatches] = useState<number>(0)
+	const [matchPositions, setMatchPositions] = useState<number[]>([])
+	const [gridApi, setGridApi] = useState<any>(null)
 
 	// Debounce search query to prevent heavy rendering on every keystroke
-	const navigateToNextMatch = useCallback(() => {
-		if (matchedRows.length === 0 || !gridApi) return
-
-		const nextMatchIdx = (currentMatchIdx + 1) % matchedRows.length
-		const rowIndex = matchedRows[nextMatchIdx]
-
-		gridApi.ensureIndexVisible(rowIndex, 'middle')
-		gridApi.setFocusedCell(rowIndex, null)
-		setCurrentMatchIdx(nextMatchIdx)
-	}, [gridApi, matchedRows, currentMatchIdx])
-
-	// Calculate matches whenever searchQuery changes
-	useEffect(() => {
-		if (!gridApi || !searchQuery) {
-			setMatchedRows([])
-			setCurrentMatchIdx(0)
-			return
-		}
-
-		const rowCount = gridApi.getDisplayedRowCount()
-		const matches: number[] = []
-
-		for (let i = 0; i < rowCount; i++) {
-			const node = gridApi.getDisplayedRowAtIndex(i)
-			if (!node?.data) continue
-
-			const values = Object.values(node.data)
-			const found = values.some(v => {
-				const str = typeof v === 'object' ? JSON.stringify(v) : String(v)
-				return str.toLowerCase().includes(searchQuery.toLowerCase())
-			})
-
-			if (found) matches.push(i)
-		}
-
-		setMatchedRows(matches)
-		setCurrentMatchIdx(-1) // Reset index so first Enter goes to the first match
-	}, [gridApi, searchQuery])
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setSearchQuery(searchInput)
+			setActiveMatchIdx(0) // Reset active match when search query changes
 		}, 500)
 		return () => clearTimeout(timer)
 	}, [searchInput])
+
+	// Navigate to next or previous match
+	const navigateNextMatch = useCallback((direction: 'next' | 'prev' = 'next') => {
+		if (totalMatches === 0) return
+		let nextIdx = activeMatchIdx
+		if (direction === 'next') {
+			nextIdx = (activeMatchIdx + 1) % totalMatches
+		} else {
+			nextIdx = (activeMatchIdx - 1 + totalMatches) % totalMatches
+		}
+		setActiveMatchIdx(nextIdx)
+	}, [activeMatchIdx, totalMatches])
+
+	// Scroll the grid to the active match if in table mode
+	useEffect(() => {
+		if (viewMode === 'table' && gridApi && totalMatches > 0 && matchPositions.length > 0) {
+			// In table mode, matchPositions stores percentages, we need to map that back to row index.
+			// However, since activeMatchIdx is the Nth match globally, and matchPositions is an array of
+			// relative row percentages where matches occurred, we'll just scroll to the row representing that percentage.
+
+			// If we have less positions than totalMatches (multiple matches per row),
+			// we approximate which row to scroll to based on the active index ratio.
+			const posIdx = Math.min(
+				Math.floor((activeMatchIdx / totalMatches) * matchPositions.length),
+				matchPositions.length - 1
+			)
+			const parentPercentage = matchPositions[posIdx] || 0
+			const rowCount = gridApi.getDisplayedRowCount()
+			const rowIndex = Math.floor((parentPercentage / 100) * rowCount)
+
+			gridApi.ensureIndexVisible(rowIndex, 'middle')
+		}
+	}, [activeMatchIdx, viewMode, gridApi, matchPositions, totalMatches])
+
+	const handleMatchesFound = useCallback((matches: { positions: number[], count: number }) => {
+		setMatchPositions(matches.positions)
+		setTotalMatches(matches.count)
+		// activeMatchIdx is kept as is, but bounded defensively on display
+	}, [])
+
+
 
 	const connection = connections.find(c => c.id === selectedConnectionId)
 	const endpoint = connection?.specContent?.endpoints.find(
@@ -296,8 +301,8 @@ export function QueryView() {
 												</TabsTrigger>
 											</TabsList>
 											<div className="flex items-center gap-3 shrink-0">
-												<div className="relative">
-													<Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+												<div className="relative flex items-center">
+													<Search className="absolute left-2 w-3.5 h-3.5 text-muted-foreground z-10" />
 													<Input
 														type="text"
 														placeholder={t('common.search', { defaultValue: 'Search...' })}
@@ -306,11 +311,19 @@ export function QueryView() {
 														onKeyDown={(e) => {
 															if (e.key === 'Enter') {
 																e.preventDefault()
-																navigateToNextMatch()
+																navigateNextMatch(e.shiftKey ? 'prev' : 'next')
 															}
 														}}
-														className="h-7 pl-8 pr-2 text-[11px] w-[150px] md:w-[200px]"
+														className={cn(
+															"h-7 pl-8 text-[11px] w-[200px] md:w-[250px]",
+															searchQuery && totalMatches > 0 ? "pr-[60px]" : "pr-2"
+														)}
 													/>
+													{searchQuery && totalMatches > 0 && (
+														<span className="absolute right-2 text-[10px] text-muted-foreground tabular-nums z-10 pointer-events-none">
+															{activeMatchIdx + 1}/{totalMatches}
+														</span>
+													)}
 												</div>
 												<Button
 													variant="outline"
@@ -338,35 +351,57 @@ export function QueryView() {
 												</Badge>
 											</div>
 										</div>
-										<div className="flex-1 overflow-hidden min-w-0 w-full">
-											<TabsContent active={viewMode === 'table'} className="h-full w-full flex flex-col relative">
-												<ResponseGrid
-													data={response.data}
-													searchQuery={searchQuery}
-													onGridReady={(api) => setGridApi(api)}
-												/>
-												{/* Search hit map (scrollbar highlight) */}
-												{matchedRows.length > 0 && gridApi && (
-													<div
-														className="absolute right-0 top-0 w-1.5 h-full pointer-events-none bg-black/5 dark:bg-white/5 z-10"
-														style={{ top: '32px', height: 'calc(100% - 32px)' }} // Adjust for header
-													>
-														{matchedRows.map(idx => (
+										<div className="flex-1 overflow-hidden min-w-0 w-full relative">
+											{viewMode === 'table' && (
+												<div className="h-full w-full flex flex-col relative pr-[6px]">
+													<ResponseGrid
+														data={response.data}
+														searchQuery={searchQuery}
+														onGridReady={setGridApi}
+														onMatchesFound={handleMatchesFound}
+													/>
+												</div>
+											)}
+											{viewMode === 'json' && (
+												<div className="h-full w-full flex flex-col relative pr-[6px]">
+													<JsonResponse
+														data={response.data}
+														headers={response.headers}
+														searchQuery={searchQuery}
+														onMatchesFound={handleMatchesFound}
+														activeMatchIdx={activeMatchIdx}
+													/>
+												</div>
+											)}
+
+											{/* Search hit map (scrollbar highlight) */}
+											{matchPositions.length > 0 && (
+												<div
+													className="absolute right-0 top-0 w-[4px] h-full pointer-events-none z-20"
+													style={{
+														marginTop: '2px',
+														height: 'calc(100% - 4px)',
+														right: '2px'
+													}}
+												>
+													<div className="relative w-full h-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
+														{matchPositions.map((pos, idx) => (
 															<div
 																key={idx}
-																className="absolute left-0 w-full bg-orange-500/80 dark:bg-orange-400/80"
+																className={cn(
+																	"absolute left-0 w-full shadow-[0_0_2px_rgba(0,0,0,0.5)] transition-all",
+																	idx === activeMatchIdx ? "bg-blue-500 h-[4px] z-30" : "bg-orange-500 h-[2px] z-20"
+																)}
 																style={{
-																	top: `${(idx / gridApi.getDisplayedRowCount()) * 100}%`,
-																	height: '2px'
+																	top: `${pos}%`,
+																	borderRadius: '1px',
+																	transform: 'translateY(-50%)' // center the mark on its percentage position
 																}}
 															/>
 														))}
 													</div>
-												)}
-											</TabsContent>
-											<TabsContent active={viewMode === 'json'} className="h-full w-full flex flex-col">
-												<JsonResponse data={response.data} headers={response.headers} searchQuery={searchQuery} />
-											</TabsContent>
+												</div>
+											)}
 										</div>
 									</Tabs>
 								</div>
