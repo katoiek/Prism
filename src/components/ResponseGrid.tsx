@@ -100,7 +100,7 @@ export function ResponseGrid({ data, searchQuery }: ResponseGridProps) {
 			},
 			...baseCols
 		]
-	}, [rowData])
+	}, [rowData, searchQuery])
 
 	const defaultColDef = useMemo(() => ({
 		flex: 1,
