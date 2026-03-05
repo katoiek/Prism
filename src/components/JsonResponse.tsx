@@ -44,7 +44,7 @@ export function JsonResponse({ data, headers, searchQuery, onMatchesFound, activ
 
 				if (targetMark) {
 					targetMark.classList.add('ring-2', 'ring-blue-500', 'z-10', 'relative', 'bg-blue-300')
-					targetMark.scrollIntoView({ behavior: 'smooth', block: 'center' })
+					targetMark.scrollIntoView({ behavior: 'auto', block: 'center' })
 				}
 			} else {
 				onMatchesFound({ positions: [], count: 0 })

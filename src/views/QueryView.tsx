@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { ApiRequestForm } from '@/components/ApiRequestForm'
 import { ResponseGrid, type ExactMatchInfo } from '@/components/ResponseGrid'
@@ -32,6 +32,7 @@ export function QueryView() {
 	const [matchPositions, setMatchPositions] = useState<number[]>([])
 	const [exactMatches, setExactMatches] = useState<ExactMatchInfo[]>([])
 	const [gridApi, setGridApi] = useState<any>(null)
+	const searchInputRef = useRef<HTMLInputElement>(null)
 
 	// Debounce search query to prevent heavy rendering on every keystroke
 	useEffect(() => {
@@ -59,12 +60,21 @@ export function QueryView() {
 		if (viewMode === 'table' && gridApi && totalMatches > 0 && exactMatches.length > 0) {
 			const activeMatch = exactMatches[activeMatchIdx]
 			if (activeMatch) {
+				// Record if the input was focused before AG Grid steals it
+				const wasFocused = document.activeElement === searchInputRef.current
+
 				// Vertical scroll
 				gridApi.ensureIndexVisible(activeMatch.rowIndex, 'middle')
 				// Horizontal scroll
 				gridApi.ensureColumnVisible(activeMatch.colId)
 				// Visible cursor indicator inside the grid
 				gridApi.setFocusedCell(activeMatch.rowIndex, activeMatch.colId)
+
+				// Refocus the search input if it was active
+				if (wasFocused && searchInputRef.current) {
+					// Use a tiny timeout to ensure it runs after AG Grid's internal focus changes
+					setTimeout(() => searchInputRef.current?.focus(), 10)
+				}
 			}
 		}
 	}, [activeMatchIdx, viewMode, gridApi, exactMatches, totalMatches])
@@ -300,6 +310,7 @@ export function QueryView() {
 												<div className="relative flex items-center">
 													<Search className="absolute left-2 w-3.5 h-3.5 text-muted-foreground z-10" />
 													<Input
+														ref={searchInputRef}
 														type="text"
 														placeholder={t('common.search', { defaultValue: 'Search...' })}
 														value={searchInput}
