@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { ApiRequestForm } from '@/components/ApiRequestForm'
 import { ResponseGrid } from '@/components/ResponseGrid'
@@ -25,7 +25,16 @@ export function QueryView() {
 	const [error, setError] = useState<string | null>(null)
 	const [isSettingsExpanded, setIsSettingsExpanded] = useState(false)
 	const [viewMode, setViewMode] = useState<'table' | 'json'>('table')
+	const [searchInput, setSearchInput] = useState('')
 	const [searchQuery, setSearchQuery] = useState('')
+
+	// Debounce search query to prevent heavy rendering on every keystroke
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setSearchQuery(searchInput)
+		}, 300)
+		return () => clearTimeout(timer)
+	}, [searchInput])
 
 	const connection = connections.find(c => c.id === selectedConnectionId)
 	const endpoint = connection?.specContent?.endpoints.find(
@@ -251,8 +260,8 @@ export function QueryView() {
 													<Input
 														type="text"
 														placeholder={t('common.search', { defaultValue: 'Search...' })}
-														value={searchQuery}
-														onChange={(e) => setSearchQuery(e.target.value)}
+														value={searchInput}
+														onChange={(e) => setSearchInput(e.target.value)}
 														className="h-7 pl-8 pr-2 text-[11px] w-[150px] md:w-[200px]"
 													/>
 												</div>

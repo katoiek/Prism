@@ -54,6 +54,11 @@ export function ResponseGrid({ data, searchQuery }: ResponseGridProps) {
 			field: key,
 			headerName: key.split('.').pop() || key,
 			valueGetter: (params) => params.data?.[key],
+			getQuickFilterText: (params) => {
+				const val = params.data?.[key]
+				if (val === null || val === undefined) return ''
+				return typeof val === 'object' ? JSON.stringify(val) : String(val)
+			},
 			sortable: true,
 			filter: true,
 			resizable: true,
