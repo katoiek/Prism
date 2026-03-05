@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { ApiRequestForm } from '@/components/ApiRequestForm'
 import { ResponseGrid } from '@/components/ResponseGrid'
@@ -26,9 +26,50 @@ export function QueryView() {
 	const [isSettingsExpanded, setIsSettingsExpanded] = useState(false)
 	const [viewMode, setViewMode] = useState<'table' | 'json'>('table')
 	const [searchInput, setSearchInput] = useState('')
+	const [gridApi, setGridApi] = useState<any>(null)
+	const [currentMatchIdx, setCurrentMatchIdx] = useState<number>(0)
+	const [matchedRows, setMatchedRows] = useState<number[]>([])
 	const [searchQuery, setSearchQuery] = useState('')
 
 	// Debounce search query to prevent heavy rendering on every keystroke
+	const navigateToNextMatch = useCallback(() => {
+		if (matchedRows.length === 0 || !gridApi) return
+
+		const nextMatchIdx = (currentMatchIdx + 1) % matchedRows.length
+		const rowIndex = matchedRows[nextMatchIdx]
+
+		gridApi.ensureIndexVisible(rowIndex, 'middle')
+		gridApi.setFocusedCell(rowIndex, null)
+		setCurrentMatchIdx(nextMatchIdx)
+	}, [gridApi, matchedRows, currentMatchIdx])
+
+	// Calculate matches whenever searchQuery changes
+	useEffect(() => {
+		if (!gridApi || !searchQuery) {
+			setMatchedRows([])
+			setCurrentMatchIdx(0)
+			return
+		}
+
+		const rowCount = gridApi.getDisplayedRowCount()
+		const matches: number[] = []
+
+		for (let i = 0; i < rowCount; i++) {
+			const node = gridApi.getDisplayedRowAtIndex(i)
+			if (!node?.data) continue
+
+			const values = Object.values(node.data)
+			const found = values.some(v => {
+				const str = typeof v === 'object' ? JSON.stringify(v) : String(v)
+				return str.toLowerCase().includes(searchQuery.toLowerCase())
+			})
+
+			if (found) matches.push(i)
+		}
+
+		setMatchedRows(matches)
+		setCurrentMatchIdx(-1) // Reset index so first Enter goes to the first match
+	}, [gridApi, searchQuery])
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setSearchQuery(searchInput)
@@ -262,6 +303,12 @@ export function QueryView() {
 														placeholder={t('common.search', { defaultValue: 'Search...' })}
 														value={searchInput}
 														onChange={(e) => setSearchInput(e.target.value)}
+														onKeyDown={(e) => {
+															if (e.key === 'Enter') {
+																e.preventDefault()
+																navigateToNextMatch()
+															}
+														}}
 														className="h-7 pl-8 pr-2 text-[11px] w-[150px] md:w-[200px]"
 													/>
 												</div>
@@ -292,8 +339,30 @@ export function QueryView() {
 											</div>
 										</div>
 										<div className="flex-1 overflow-hidden min-w-0 w-full">
-											<TabsContent active={viewMode === 'table'} className="h-full w-full flex flex-col">
-												<ResponseGrid data={response.data} searchQuery={searchQuery} />
+											<TabsContent active={viewMode === 'table'} className="h-full w-full flex flex-col relative">
+												<ResponseGrid
+													data={response.data}
+													searchQuery={searchQuery}
+													onGridReady={(api) => setGridApi(api)}
+												/>
+												{/* Search hit map (scrollbar highlight) */}
+												{matchedRows.length > 0 && gridApi && (
+													<div
+														className="absolute right-0 top-0 w-1.5 h-full pointer-events-none bg-black/5 dark:bg-white/5 z-10"
+														style={{ top: '32px', height: 'calc(100% - 32px)' }} // Adjust for header
+													>
+														{matchedRows.map(idx => (
+															<div
+																key={idx}
+																className="absolute left-0 w-full bg-orange-500/80 dark:bg-orange-400/80"
+																style={{
+																	top: `${(idx / gridApi.getDisplayedRowCount()) * 100}%`,
+																	height: '2px'
+																}}
+															/>
+														))}
+													</div>
+												)}
 											</TabsContent>
 											<TabsContent active={viewMode === 'json'} className="h-full w-full flex flex-col">
 												<JsonResponse data={response.data} headers={response.headers} searchQuery={searchQuery} />

@@ -30,9 +30,10 @@ ModuleRegistry.registerModules([
 interface ResponseGridProps {
 	data: any
 	searchQuery?: string
+	onGridReady?: (api: any) => void
 }
 
-export function ResponseGrid({ data, searchQuery }: ResponseGridProps) {
+export function ResponseGrid({ data, searchQuery, onGridReady }: ResponseGridProps) {
 	const rawArray = useMemo(() => extractDataArray(data), [data])
 
 	// Robust Flattening: Always flatten objects to ensure consistent keys
@@ -118,6 +119,7 @@ export function ResponseGrid({ data, searchQuery }: ResponseGridProps) {
 					paginationPageSize={100}
 					paginationPageSizeSelector={[100, 500, 1000]}
 					quickFilterText={searchQuery}
+					onGridReady={(params) => onGridReady?.(params.api)}
 				/>
 			</div>
 		</div>
