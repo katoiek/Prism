@@ -54,6 +54,7 @@ const resources = {
 			},
 			connSettings: {
 				authTitle: 'Authentication Settings',
+				name: 'Connection Name',
 				isNotion: 'This is a Notion Connection',
 				notionVersion: 'Version:',
 				baseUrl: 'Base URL Override',

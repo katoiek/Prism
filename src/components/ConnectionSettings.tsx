@@ -43,6 +43,7 @@ function detectProvider(connection: Connection): string | null {
 export function ConnectionSettings({ connection }: { connection: Connection }) {
 	const { t } = useTranslation()
 	const { updateConnection } = useAppStore()
+	const [name, setName] = useState(connection.name || '')
 	const [baseUrl, setBaseUrl] = useState(connection.baseUrl || '')
 	const [clientId, setClientId] = useState(connection.clientId || '')
 	const [clientSecret, setClientSecret] = useState(connection.clientSecret || '')
@@ -86,6 +87,7 @@ export function ConnectionSettings({ connection }: { connection: Connection }) {
 
 	const handleSave = () => {
 		updateConnection(connection.id, {
+			name,
 			baseUrl,
 			clientId,
 			clientSecret,
@@ -104,6 +106,11 @@ export function ConnectionSettings({ connection }: { connection: Connection }) {
 				<h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-4">{t('connSettings.authTitle')}</h3>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+					<div className="grid gap-2 col-span-full">
+						<label className="text-sm font-medium">{t('connSettings.name')}</label>
+						<Input value={name} onChange={e => setName(e.target.value)} placeholder={t('connections.namePlaceholder')} />
+					</div>
+
 					{connection.isNotion && (
 						<div className="flex items-center gap-2 col-span-full mb-2">
 							<label htmlFor="notionVersion" className="text-sm font-medium whitespace-nowrap">{t('connSettings.notionVersion')}</label>
