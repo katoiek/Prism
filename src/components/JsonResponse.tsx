@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 
 interface JsonResponseProps {
 	data: any
@@ -13,90 +13,85 @@ export function JsonResponse({ data, headers, searchQuery, onMatchesFound, activ
 	const { t } = useTranslation()
 	const containerRef = useRef<HTMLDivElement>(null)
 
-	// Notify parent of matches and scroll to active
-	useEffect(() => {
-		if (!containerRef.current || !onMatchesFound || !searchQuery) {
-			onMatchesFound?.({ positions: [], count: 0 })
-			return
-		}
+	// Memoize stringified JSON to avoid heavy processing on every re-render
+	const bodyString = useMemo(() => JSON.stringify(data, null, 2), [data])
+	const headersString = useMemo(() => headers ? JSON.stringify(headers, null, 2) : '', [headers])
 
-		// Small delay to allow react to render the <mark> tags
+	// Efficiently highlight text using dangerouslySetInnerHTML
+	// This is much faster than React.map for large data
+	const highlightedHeadersContent = useMemo(() => {
+		if (!searchQuery || !headersString) return headersString
+		const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+		return headersString.replace(regex, '<mark class="bg-yellow-400/80 text-black rounded-sm px-0.5">$1</mark>')
+	}, [headersString, searchQuery])
+
+	const highlightedBodyContent = useMemo(() => {
+		if (!searchQuery) return bodyString
+		// Defensive check: if string is too large, you might want to limit regex but let's try standard first
+		const regex = new RegExp(`(${searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+		return bodyString.replace(regex, '<mark class="bg-yellow-400/80 text-black rounded-sm px-0.5">$1</mark>')
+	}, [bodyString, searchQuery])
+
+	// Notify parent of matches and handle active scroll
+	useEffect(() => {
+		if (!onMatchesFound) return
+
+		// We use a small timeout to let the dangerouslySetInnerHTML content settle
 		const timer = setTimeout(() => {
 			if (!containerRef.current) return
 			const marks = Array.from(containerRef.current.querySelectorAll('mark'))
 
 			// Remove previous active highlights
-			marks.forEach(m => m.classList.remove('ring-2', 'ring-blue-500', 'z-10', 'relative', 'bg-blue-300'))
+			marks.forEach(m => {
+				m.classList.remove('ring-2', 'ring-blue-500', 'z-10', 'relative', 'bg-blue-300', 'active-match')
+			})
 
-			if (marks.length > 0) {
-				const containerHeight = containerRef.current.scrollHeight || 1
-				const positions = marks.map(mark => {
-					// Get position relative to the scrollable container
-					const top = mark.offsetTop
-					return (top / containerHeight) * 100
-				})
+			if (marks.length > 0 && searchQuery) {
+				onMatchesFound({ positions: [], count: marks.length })
 
-				onMatchesFound({ positions, count: marks.length })
-
-				// Highlight and scroll to the active match
 				const targetIdx = Math.min(Math.max(0, activeMatchIdx), marks.length - 1)
 				const targetMark = marks[targetIdx]
 
 				if (targetMark) {
-					targetMark.classList.add('ring-2', 'ring-blue-500', 'z-10', 'relative', 'bg-blue-300')
-					targetMark.scrollIntoView({ behavior: 'auto', block: 'center' })
+					targetMark.classList.add('ring-2', 'ring-blue-500', 'z-10', 'relative', 'bg-blue-300', 'active-match')
+					// Scroll to center
+					targetMark.scrollIntoView({ behavior: 'smooth', block: 'center' })
 				}
 			} else {
 				onMatchesFound({ positions: [], count: 0 })
 			}
-		}, 50)
+		}, 10)
 
 		return () => clearTimeout(timer)
-	}, [searchQuery, activeMatchIdx, onMatchesFound, data, headers])
-
-	const highlightText = (text: string, query?: string) => {
-		if (!query) return text
-
-		const parts = text.split(new RegExp(`(${query})`, 'gi'))
-		return (
-			<>
-				{parts.map((part, index) =>
-					part.toLowerCase() === query.toLowerCase() ? (
-						<mark key={index} className="bg-yellow-400/80 text-black rounded-sm px-0.5">
-							{part}
-						</mark>
-					) : (
-						part
-					)
-				)}
-			</>
-		)
-	}
+	}, [searchQuery, activeMatchIdx, onMatchesFound, highlightedBodyContent, highlightedHeadersContent])
 
 	return (
 		<div className="h-full w-full overflow-hidden min-w-0 flex flex-col relative" ref={containerRef}>
-			<div className="flex-1 overflow-auto p-4 min-w-0 relative">
+			<div className="flex-1 overflow-auto p-4 min-w-0 relative scroll-smooth">
 				<div className="space-y-4">
 					{headers && (
 						<div className="shrink-0">
 							<h4 className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
 								{t('query.headers', { defaultValue: 'Headers' })}
 							</h4>
-							<pre className="bg-muted/50 border rounded-md p-3 overflow-auto max-h-[150px] text-[10px] whitespace-pre-wrap break-all">
-								{highlightText(JSON.stringify(headers, null, 2), searchQuery)}
-							</pre>
+							<pre
+								className="bg-muted/50 border rounded-md p-3 overflow-auto max-h-[150px] text-[10px] whitespace-pre-wrap break-all"
+								dangerouslySetInnerHTML={{ __html: highlightedHeadersContent }}
+							/>
 						</div>
 					)}
 					<div>
 						<h4 className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
 							{t('query.body', { defaultValue: 'Body' })}
 						</h4>
-						<pre className="bg-muted/50 border rounded-md p-3 overflow-auto max-h-[70vh] whitespace-pre-wrap break-all">
-							{highlightText(JSON.stringify(data, null, 2), searchQuery)}
-						</pre>
+						<pre
+							className="bg-muted/50 border rounded-md p-3 overflow-auto max-h-[70vh] whitespace-pre-wrap break-all text-xs"
+							dangerouslySetInnerHTML={{ __html: highlightedBodyContent }}
+						/>
 					</div>
 				</div>
 			</div>
 		</div>
 	)
 }
+

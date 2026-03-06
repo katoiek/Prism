@@ -60,7 +60,6 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		}
 
 		let count = 0
-		const positions: number[] = []
 		const exactMatches: ExactMatchInfo[] = []
 		// Escape regex special chars for accurate string matching
 		const query = searchQuery.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -71,14 +70,13 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 				const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
 				if (text.toLowerCase().includes(query)) {
 					// Add one match position per matching cell to avoid being stuck navigating multiple hits in the same cell
-					positions.push((idx / rowData.length) * 100)
 					exactMatches.push({ rowIndex: idx, colId: key })
 					count++
 				}
 			})
 		})
 
-		onMatchesFound({ positions, count, exactMatches })
+		onMatchesFound({ positions: [], count, exactMatches })
 	}, [rowData, searchQuery, onMatchesFound])
 
 	const columnDefs = useMemo<ColDef[]>(() => {

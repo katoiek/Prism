@@ -29,7 +29,6 @@ export function QueryView() {
 	const [searchQuery, setSearchQuery] = useState('')
 	const [activeMatchIdx, setActiveMatchIdx] = useState<number>(0)
 	const [totalMatches, setTotalMatches] = useState<number>(0)
-	const [matchPositions, setMatchPositions] = useState<number[]>([])
 	const [exactMatches, setExactMatches] = useState<ExactMatchInfo[]>([])
 	const [gridApi, setGridApi] = useState<any>(null)
 	const [scrollTrigger, setScrollTrigger] = useState(0)
@@ -102,7 +101,6 @@ export function QueryView() {
 	}, [activeMatchIdx, scrollTrigger, viewMode, gridApi, exactMatches, totalMatches])
 
 	const handleMatchesFound = useCallback((matches: { positions: number[], count: number, exactMatches?: ExactMatchInfo[] }) => {
-		setMatchPositions(matches.positions)
 		setTotalMatches(matches.count)
 		setExactMatches(matches.exactMatches || [])
 		// activeMatchIdx is kept as is, but bounded defensively on display
@@ -382,7 +380,7 @@ export function QueryView() {
 										</div>
 										<div className="flex-1 overflow-hidden min-w-0 w-full relative">
 											{viewMode === 'table' && (
-												<div className="h-full w-full flex flex-col relative pr-[6px]">
+												<div className="h-full w-full flex flex-col relative">
 													<ResponseGrid
 														data={response.data}
 														searchQuery={searchQuery}
@@ -392,7 +390,7 @@ export function QueryView() {
 												</div>
 											)}
 											{viewMode === 'json' && (
-												<div className="h-full w-full flex flex-col relative pr-[6px]">
+												<div className="h-full w-full flex flex-col relative">
 													<JsonResponse
 														data={response.data}
 														headers={response.headers}
@@ -400,35 +398,6 @@ export function QueryView() {
 														onMatchesFound={handleMatchesFound}
 														activeMatchIdx={activeMatchIdx}
 													/>
-												</div>
-											)}
-
-											{/* Search hit map (scrollbar highlight) */}
-											{matchPositions.length > 0 && (
-												<div
-													className="absolute right-0 top-0 w-[4px] h-full pointer-events-none z-20"
-													style={{
-														marginTop: '2px',
-														height: 'calc(100% - 4px)',
-														right: '2px'
-													}}
-												>
-													<div className="relative w-full h-full bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
-														{matchPositions.map((pos, idx) => (
-															<div
-																key={idx}
-																className={cn(
-																	"absolute left-0 w-full shadow-[0_0_2px_rgba(0,0,0,0.5)] transition-all",
-																	idx === activeMatchIdx ? "bg-blue-500 h-[4px] z-30" : "bg-orange-500 h-[2px] z-20"
-																)}
-																style={{
-																	top: `${pos}%`,
-																	borderRadius: '1px',
-																	transform: 'translateY(-50%)' // center the mark on its percentage position
-																}}
-															/>
-														))}
-													</div>
 												</div>
 											)}
 										</div>
