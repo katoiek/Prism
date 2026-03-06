@@ -32,6 +32,7 @@ export function QueryView() {
 	const [matchPositions, setMatchPositions] = useState<number[]>([])
 	const [exactMatches, setExactMatches] = useState<ExactMatchInfo[]>([])
 	const [gridApi, setGridApi] = useState<any>(null)
+	const [scrollTrigger, setScrollTrigger] = useState(0)
 	const searchInputRef = useRef<HTMLInputElement>(null)
 
 	// Debounce search query to prevent heavy rendering on every keystroke
@@ -53,6 +54,8 @@ export function QueryView() {
 			nextIdx = (activeMatchIdx - 1 + totalMatches) % totalMatches
 		}
 		setActiveMatchIdx(nextIdx)
+		// Always increment trigger so the scroll effect fires even when idx doesn't change
+		setScrollTrigger(prev => prev + 1)
 	}, [activeMatchIdx, totalMatches])
 
 	// Scroll the grid to the active match if in table mode
@@ -96,7 +99,7 @@ export function QueryView() {
 				}, 10)
 			}
 		}
-	}, [activeMatchIdx, viewMode, gridApi, exactMatches, totalMatches])
+	}, [activeMatchIdx, scrollTrigger, viewMode, gridApi, exactMatches, totalMatches])
 
 	const handleMatchesFound = useCallback((matches: { positions: number[], count: number, exactMatches?: ExactMatchInfo[] }) => {
 		setMatchPositions(matches.positions)
