@@ -161,6 +161,8 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 					paginationPageSize={100}
 					paginationPageSizeSelector={[100, 500, 1000]}
 					quickFilterText={searchQuery}
+					enableCellTextSelection={true}
+					ensureDomOrder={true}
 					onGridReady={(params) => onGridReady?.(params.api)}
 				/>
 			</div>
