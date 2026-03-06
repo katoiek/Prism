@@ -65,39 +65,46 @@ export function QueryView() {
 				// Record if the input was focused before AG Grid steals it
 				const wasFocused = document.activeElement === searchInputRef.current
 
+				// Find the row node by ID to get its CURRENT visual index
+				const rowNode = gridApi.getRowNode(activeMatch.rowId)
+				if (!rowNode) return
+
+				const visualRowIndex = rowNode.rowIndex ?? 0
+
 				// If pagination is active, we must ensure we are on the correct page first
 				const pageSize = gridApi.paginationGetPageSize()
 				if (pageSize > 0) {
-					const targetPage = Math.floor(activeMatch.rowIndex / pageSize)
+					const targetPage = Math.floor(visualRowIndex / pageSize)
 					const currentPage = gridApi.paginationGetCurrentPage()
 					if (targetPage !== currentPage) {
 						gridApi.paginationGoToPage(targetPage)
 					}
 				}
 
-				// Clear any previous focus so AG Grid re-evaluates scroll position
+				// Clear any previous focus
 				gridApi.clearFocusedCell()
 
 				// Small timeout to allow pagination to render before scrolling
 				setTimeout(() => {
-					// Horizontal scroll first
-					if (activeMatch.colId) {
-						gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
-					}
+					// 1. Vertical scroll to the row first
+					gridApi.ensureIndexVisible(visualRowIndex, 'middle')
 
-					// Then vertical scroll
-					gridApi.ensureIndexVisible(activeMatch.rowIndex, 'middle')
-
-					// Slight delay to let scroll finish, then focus
+					// 2. Horizontal scroll to the column
 					setTimeout(() => {
-						gridApi.setFocusedCell(activeMatch.rowIndex, activeMatch.colId)
-
-						// Refocus the search input if it was active
-						if (wasFocused && searchInputRef.current) {
-							setTimeout(() => searchInputRef.current?.focus(), 10)
+						if (activeMatch.colId) {
+							gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
 						}
+
+						// 3. Final focus
+						setTimeout(() => {
+							gridApi.setFocusedCell(visualRowIndex, activeMatch.colId)
+
+							if (wasFocused && searchInputRef.current) {
+								setTimeout(() => searchInputRef.current?.focus(), 10)
+							}
+						}, 100)
 					}, 50)
-				}, 20)
+				}, 50)
 			}
 		}
 	}, [activeMatchIdx, scrollTrigger, viewMode, gridApi, exactMatches, totalMatches])

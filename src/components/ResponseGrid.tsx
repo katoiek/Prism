@@ -28,7 +28,7 @@ ModuleRegistry.registerModules([
 ])
 
 export interface ExactMatchInfo {
-	rowIndex: number
+	rowId: string
 	colId: string
 }
 
@@ -46,9 +46,9 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 
 	// Robust Flattening: Always flatten objects to ensure consistent keys
 	const rowData = useMemo(() => {
-		return rawArray.map(item => {
-			if (!item || typeof item !== 'object') return { value: item }
-			return flattenObject(item)
+		return rawArray.map((item, idx) => {
+			const flattened = (!item || typeof item !== 'object') ? { value: item } : flattenObject(item)
+			return { ...flattened, __prism_id: `row-${idx}` }
 		})
 	}, [rawArray])
 
@@ -63,13 +63,13 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		// Escape regex special chars for accurate string matching
 		const query = searchQuery.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
-		rowData.forEach((row, idx) => {
+		rowData.forEach((row) => {
 			Object.entries(row).forEach(([key, val]) => {
 				if (val === null || val === undefined) return
 				const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
 				if (text.toLowerCase().includes(query)) {
 					// Add one match position per matching cell to avoid being stuck navigating multiple hits in the same cell
-					exactMatches.push({ rowIndex: idx, colId: key })
+					exactMatches.push({ rowId: row.__prism_id, colId: key })
 					count++
 				}
 			})
@@ -197,6 +197,7 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 					quickFilterText={searchQuery}
 					enableCellTextSelection={true}
 					ensureDomOrder={true}
+					getRowId={(params) => params.data.__prism_id}
 					onCellClicked={handleCellClicked}
 					onGridReady={(params) => {
 						gridApiRef.current = params.api
