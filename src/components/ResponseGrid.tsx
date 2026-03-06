@@ -146,16 +146,17 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		minWidth: 100,
 	}), [])
 
-	// Listen for Ctrl+C / Cmd+C on the grid wrapper to copy the focused cell value
+	// Listen for Ctrl+C / Cmd+C at document level to copy the focused cell value
 	useEffect(() => {
-		const wrapper = wrapperRef.current
-		if (!wrapper) return
-
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
 				// Don't interfere if user has selected text manually (double-click selection)
 				const selection = window.getSelection()
 				if (selection && selection.toString().length > 0) return
+
+				// Only act if the event originated from within our grid
+				const wrapper = wrapperRef.current
+				if (!wrapper || !wrapper.contains(e.target as Node)) return
 
 				const api = gridApiRef.current
 				if (!api) return
@@ -172,8 +173,8 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 			}
 		}
 
-		wrapper.addEventListener('keydown', handleKeyDown)
-		return () => wrapper.removeEventListener('keydown', handleKeyDown)
+		document.addEventListener('keydown', handleKeyDown)
+		return () => document.removeEventListener('keydown', handleKeyDown)
 	}, [])
 
 	return (
