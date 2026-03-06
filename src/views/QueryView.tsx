@@ -81,13 +81,13 @@ export function QueryView() {
 					}
 				}
 
-				// Clear any previous focus
+				// Clear focus
 				gridApi.clearFocusedCell()
 
 				// Small timeout to allow pagination to render before scrolling
 				setTimeout(() => {
-					// 1. Vertical scroll to the row first
-					gridApi.ensureIndexVisible(visualRowIndex, 'middle')
+					// 1. Scroll to the row node specifically
+					gridApi.ensureNodeVisible(rowNode, 'middle')
 
 					// 2. Horizontal scroll to the column
 					setTimeout(() => {
