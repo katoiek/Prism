@@ -73,20 +73,26 @@ export function QueryView() {
 					}
 				}
 
+				// Clear any previous focus so AG Grid re-evaluates scroll position
+				gridApi.clearFocusedCell()
+
 				// Small timeout to allow pagination to render before scrolling
 				setTimeout(() => {
-					// Vertical scroll
-					gridApi.ensureIndexVisible(activeMatch.rowIndex, 'middle')
-					// Horizontal scroll
+					// Horizontal scroll first (so column is visible before focusing)
 					gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
-					// Visible cursor indicator inside the grid
-					gridApi.setFocusedCell(activeMatch.rowIndex, activeMatch.colId)
 
-					// Refocus the search input if it was active
-					if (wasFocused && searchInputRef.current) {
-						// Use a tiny timeout to ensure it runs after AG Grid's internal focus changes
-						setTimeout(() => searchInputRef.current?.focus(), 10)
-					}
+					// Then vertical scroll
+					gridApi.ensureIndexVisible(activeMatch.rowIndex, 'middle')
+
+					// Slight delay to let scroll finish, then set focus
+					setTimeout(() => {
+						gridApi.setFocusedCell(activeMatch.rowIndex, activeMatch.colId)
+
+						// Refocus the search input if it was active
+						if (wasFocused && searchInputRef.current) {
+							setTimeout(() => searchInputRef.current?.focus(), 10)
+						}
+					}, 30)
 				}, 10)
 			}
 		}
