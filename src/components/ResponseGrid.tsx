@@ -88,6 +88,7 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 
 		const baseCols: ColDef[] = Array.from(keys).map(key => ({
 			field: key,
+			colId: key,
 			headerName: key.split('.').pop() || key,
 			valueGetter: (params) => params.data?.[key],
 			getQuickFilterText: (params) => {

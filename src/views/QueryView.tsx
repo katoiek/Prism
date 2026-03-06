@@ -78,7 +78,7 @@ export function QueryView() {
 					// Vertical scroll
 					gridApi.ensureIndexVisible(activeMatch.rowIndex, 'middle')
 					// Horizontal scroll
-					gridApi.ensureColumnVisible(activeMatch.colId)
+					gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
 					// Visible cursor indicator inside the grid
 					gridApi.setFocusedCell(activeMatch.rowIndex, activeMatch.colId)
 
