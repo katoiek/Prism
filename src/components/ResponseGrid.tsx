@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useCallback } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
 	ModuleRegistry,
@@ -40,6 +40,7 @@ interface ResponseGridProps {
 }
 
 export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }: ResponseGridProps) {
+	const gridApiRef = useRef<any>(null)
 	const rawArray = useMemo(() => extractDataArray(data), [data])
 
 	// Robust Flattening: Always flatten objects to ensure consistent keys
@@ -144,6 +145,25 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		minWidth: 100,
 	}), [])
 
+	// Handle Ctrl+C / Cmd+C to copy the focused cell value
+	const handleCellKeyDown = useCallback((params: any) => {
+		const event = params.event as KeyboardEvent
+		if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+			event.preventDefault()
+			const api = gridApiRef.current
+			if (!api) return
+			const focusedCell = api.getFocusedCell()
+			if (!focusedCell) return
+			const rowNode = api.getDisplayedRowAtIndex(focusedCell.rowIndex)
+			if (!rowNode) return
+			const colId = focusedCell.column.getColId()
+			const val = rowNode.data?.[colId]
+			if (val === null || val === undefined) return
+			const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
+			navigator.clipboard.writeText(text)
+		}
+	}, [])
+
 	return (
 		<div className="h-full w-full overflow-hidden p-4 min-w-0 flex flex-col relative">
 			<style>{`
@@ -163,7 +183,11 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 					quickFilterText={searchQuery}
 					enableCellTextSelection={true}
 					ensureDomOrder={true}
-					onGridReady={(params) => onGridReady?.(params.api)}
+					onCellKeyDown={handleCellKeyDown}
+					onGridReady={(params) => {
+						gridApiRef.current = params.api
+						onGridReady?.(params.api)
+					}}
 				/>
 			</div>
 		</div>
