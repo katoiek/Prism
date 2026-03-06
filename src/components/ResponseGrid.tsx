@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback } from 'react'
+import { useMemo, useRef, useCallback, useEffect } from 'react'
 import { AgGridReact } from 'ag-grid-react'
 import {
 	ModuleRegistry,
@@ -41,6 +41,7 @@ interface ResponseGridProps {
 
 export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }: ResponseGridProps) {
 	const gridApiRef = useRef<any>(null)
+	const wrapperRef = useRef<HTMLDivElement>(null)
 	const rawArray = useMemo(() => extractDataArray(data), [data])
 
 	// Robust Flattening: Always flatten objects to ensure consistent keys
@@ -145,27 +146,38 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		minWidth: 100,
 	}), [])
 
-	// Handle Ctrl+C / Cmd+C to copy the focused cell value
-	const handleCellKeyDown = useCallback((params: any) => {
-		const event = params.event as KeyboardEvent
-		if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
-			event.preventDefault()
-			const api = gridApiRef.current
-			if (!api) return
-			const focusedCell = api.getFocusedCell()
-			if (!focusedCell) return
-			const rowNode = api.getDisplayedRowAtIndex(focusedCell.rowIndex)
-			if (!rowNode) return
-			const colId = focusedCell.column.getColId()
-			const val = rowNode.data?.[colId]
-			if (val === null || val === undefined) return
-			const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
-			navigator.clipboard.writeText(text)
+	// Listen for Ctrl+C / Cmd+C on the grid wrapper to copy the focused cell value
+	useEffect(() => {
+		const wrapper = wrapperRef.current
+		if (!wrapper) return
+
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+				// Don't interfere if user has selected text manually (double-click selection)
+				const selection = window.getSelection()
+				if (selection && selection.toString().length > 0) return
+
+				const api = gridApiRef.current
+				if (!api) return
+				const focusedCell = api.getFocusedCell()
+				if (!focusedCell) return
+				const rowNode = api.getDisplayedRowAtIndex(focusedCell.rowIndex)
+				if (!rowNode) return
+				const colId = focusedCell.column.getColId()
+				const val = rowNode.data?.[colId]
+				if (val === null || val === undefined) return
+				const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
+				e.preventDefault()
+				navigator.clipboard.writeText(text)
+			}
 		}
+
+		wrapper.addEventListener('keydown', handleKeyDown)
+		return () => wrapper.removeEventListener('keydown', handleKeyDown)
 	}, [])
 
 	return (
-		<div className="h-full w-full overflow-hidden p-4 min-w-0 flex flex-col relative">
+		<div ref={wrapperRef} className="h-full w-full overflow-hidden p-4 min-w-0 flex flex-col relative" tabIndex={-1}>
 			<style>{`
 				.ag-theme-quartz-dark .ag-cell-focus {
 					border: 2px solid #3b82f6 !important;
@@ -183,7 +195,6 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 					quickFilterText={searchQuery}
 					enableCellTextSelection={true}
 					ensureDomOrder={true}
-					onCellKeyDown={handleCellKeyDown}
 					onGridReady={(params) => {
 						gridApiRef.current = params.api
 						onGridReady?.(params.api)
