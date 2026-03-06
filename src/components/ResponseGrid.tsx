@@ -146,7 +146,19 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		minWidth: 100,
 	}), [])
 
-	// Listen for Ctrl+C / Cmd+C at document level to copy the focused cell value
+	// Store the last clicked cell's text value for Cmd+C copy
+	const lastClickedValueRef = useRef<string | null>(null)
+
+	const handleCellClicked = useCallback((params: any) => {
+		const val = params.value
+		if (val === null || val === undefined) {
+			lastClickedValueRef.current = null
+			return
+		}
+		lastClickedValueRef.current = typeof val === 'object' ? JSON.stringify(val) : String(val)
+	}, [])
+
+	// Listen for Ctrl+C / Cmd+C at document level to copy the clicked cell value
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
@@ -158,18 +170,11 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 				const wrapper = wrapperRef.current
 				if (!wrapper || !wrapper.contains(e.target as Node)) return
 
-				const api = gridApiRef.current
-				if (!api) return
-				const focusedCell = api.getFocusedCell()
-				if (!focusedCell) return
-				const rowNode = api.getDisplayedRowAtIndex(focusedCell.rowIndex)
-				if (!rowNode) return
-				const colId = focusedCell.column.getColId()
-				const val = rowNode.data?.[colId]
-				if (val === null || val === undefined) return
-				const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
-				e.preventDefault()
-				navigator.clipboard.writeText(text)
+				// Use the stored clicked cell value
+				if (lastClickedValueRef.current !== null) {
+					e.preventDefault()
+					navigator.clipboard.writeText(lastClickedValueRef.current)
+				}
 			}
 		}
 
@@ -196,6 +201,7 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 					quickFilterText={searchQuery}
 					enableCellTextSelection={true}
 					ensureDomOrder={true}
+					onCellClicked={handleCellClicked}
 					onGridReady={(params) => {
 						gridApiRef.current = params.api
 						onGridReady?.(params.api)
@@ -205,3 +211,4 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		</div>
 	)
 }
+
