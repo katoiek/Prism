@@ -55,7 +55,7 @@ export function JsonResponse({ data, headers, searchQuery, onMatchesFound, activ
 				if (targetMark) {
 					targetMark.classList.add('ring-2', 'ring-blue-500', 'z-10', 'relative', 'bg-blue-300', 'active-match')
 					// Scroll to center
-					targetMark.scrollIntoView({ behavior: 'smooth', block: 'center' })
+					targetMark.scrollIntoView({ behavior: 'auto', block: 'center' })
 				}
 			} else {
 				onMatchesFound({ positions: [], count: 0 })
@@ -67,7 +67,7 @@ export function JsonResponse({ data, headers, searchQuery, onMatchesFound, activ
 
 	return (
 		<div className="h-full w-full overflow-hidden min-w-0 flex flex-col relative" ref={containerRef}>
-			<div className="flex-1 overflow-auto p-4 min-w-0 relative scroll-smooth">
+			<div className="flex-1 overflow-auto p-4 min-w-0 relative">
 				<div className="space-y-4">
 					{headers && (
 						<div className="shrink-0">

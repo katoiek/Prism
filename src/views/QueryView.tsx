@@ -80,13 +80,15 @@ export function QueryView() {
 
 				// Small timeout to allow pagination to render before scrolling
 				setTimeout(() => {
-					// Horizontal scroll first (so column is visible before focusing)
-					gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
+					// Horizontal scroll first
+					if (activeMatch.colId) {
+						gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
+					}
 
 					// Then vertical scroll
 					gridApi.ensureIndexVisible(activeMatch.rowIndex, 'middle')
 
-					// Slight delay to let scroll finish, then set focus
+					// Slight delay to let scroll finish, then focus
 					setTimeout(() => {
 						gridApi.setFocusedCell(activeMatch.rowIndex, activeMatch.colId)
 
@@ -94,8 +96,8 @@ export function QueryView() {
 						if (wasFocused && searchInputRef.current) {
 							setTimeout(() => searchInputRef.current?.focus(), 10)
 						}
-					}, 30)
-				}, 10)
+					}, 50)
+				}, 20)
 			}
 		}
 	}, [activeMatchIdx, scrollTrigger, viewMode, gridApi, exactMatches, totalMatches])

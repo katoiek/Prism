@@ -52,8 +52,7 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		})
 	}, [rawArray])
 
-	// Calculate matches whenever data or searchQuery changes
-	useMemo(() => {
+	useEffect(() => {
 		if (!searchQuery || !onMatchesFound || rowData.length === 0) {
 			onMatchesFound?.({ positions: [], count: 0, exactMatches: [] })
 			return
@@ -140,7 +139,6 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 	}, [rowData, searchQuery])
 
 	const defaultColDef = useMemo(() => ({
-		flex: 1,
 		minWidth: 100,
 	}), [])
 
@@ -181,7 +179,7 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 	}, [])
 
 	return (
-		<div ref={wrapperRef} className="h-full w-full overflow-hidden p-4 min-w-0 flex flex-col relative" tabIndex={-1}>
+		<div ref={wrapperRef} className="h-full w-full overflow-hidden min-w-0 flex flex-col relative" tabIndex={-1}>
 			<style>{`
 				.ag-theme-quartz-dark .ag-cell-focus {
 					border: 2px solid #3b82f6 !important;
