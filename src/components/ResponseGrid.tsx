@@ -131,6 +131,7 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		return [
 			{
 				headerName: '#',
+				colId: '__row_number',
 				valueGetter: "node.rowIndex + 1",
 				width: 70,
 				pinned: 'left',
