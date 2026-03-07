@@ -61,15 +61,17 @@ export function QueryView() {
 	useEffect(() => {
 		if (viewMode === 'table' && gridApi && totalMatches > 0 && exactMatches.length > 0) {
 			const activeMatch = exactMatches[activeMatchIdx]
-			if (activeMatch) {
+			if (activeMatch && activeMatch.rowId) {
 				// Record if the input was focused before AG Grid steals it
 				const wasFocused = document.activeElement === searchInputRef.current
 
-				// Find the row node by ID to get its CURRENT visual index
+				// Find the row node
 				const rowNode = gridApi.getRowNode(activeMatch.rowId)
 				if (!rowNode) return
 
-				const visualRowIndex = rowNode.rowIndex ?? 0
+				// rowIndex is null if the row is filtered out
+				const visualRowIndex = rowNode.rowIndex
+				if (visualRowIndex === null || visualRowIndex === undefined) return
 
 				// 1. Ensure page is correct if pagination is active
 				const pageSize = gridApi.paginationGetPageSize()
@@ -81,33 +83,41 @@ export function QueryView() {
 					}
 				}
 
-				// Clear previous focus to force a fresh scroll/focus update
+				// Clear previous focus
 				gridApi.clearFocusedCell()
 
-				// Sequence: Pagination -> Vertical Scroll -> Horizontal Scroll -> Focus
-				// Each step needs slightly more delay to ensure layout shifts are complete
+				// Sequence: Pagination -> Vertical Scroll -> Horizontal Scroll -> Focus + Flash
+				// We use staggered timeouts to allow AG Grid to handle internal state changes
 
 				setTimeout(() => {
-					// 2. Vertical scroll
+					// 2. Vertical scroll to the row
 					gridApi.ensureIndexVisible(visualRowIndex, 'middle')
 
 					setTimeout(() => {
-						// 3. Horizontal scroll
+						// 3. Horizontal scroll to the column
 						if (activeMatch.colId) {
 							gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
 						}
 
 						setTimeout(() => {
-							// 4. Focus and Select
+							// 4. Focus, Flash and restore input focus
 							gridApi.setFocusedCell(visualRowIndex, activeMatch.colId)
 
-							// Restore input focus if it was active
+							// Flash the cell so the user sees which one is active
+							gridApi.flashCells({
+								rowNodes: [rowNode],
+								columns: [activeMatch.colId],
+								flashDelay: 1000,
+								fadeDelay: 500
+							})
+
+							// Restore search input focus to allow consecutive Enter presses
 							if (wasFocused && searchInputRef.current) {
-								setTimeout(() => searchInputRef.current?.focus(), 10)
+								setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50)
 							}
-						}, 120) // Wait for horizontal scroll
-					}, 80) // Wait for vertical scroll
-				}, 60) // Wait for pagination
+						}, 150) // Wait for horizontal scroll
+					}, 100) // Wait for vertical scroll
+				}, 100) // Wait for pagination/filtering
 			}
 		}
 	}, [activeMatchIdx, scrollTrigger, viewMode, gridApi, exactMatches, totalMatches])
