@@ -62,24 +62,36 @@ export function QueryView() {
 		if (viewMode === 'table' && gridApi && totalMatches > 0 && exactMatches.length > 0) {
 			const activeMatch = exactMatches[activeMatchIdx]
 			if (activeMatch && activeMatch.rowId) {
+				console.log('[SearchNav] Triggered for:', { activeMatchIdx, rowId: activeMatch.rowId, colId: activeMatch.colId })
+
 				// Record if the input was focused before AG Grid steals it
 				const wasFocused = document.activeElement === searchInputRef.current
 				const timers: any[] = []
 
 				// Find the row node
 				const rowNode = gridApi.getRowNode(activeMatch.rowId)
-				if (!rowNode) return
+				if (!rowNode) {
+					console.warn('[SearchNav] Row node NOT found for ID:', activeMatch.rowId)
+					return
+				}
 
 				// rowIndex is null if the row is filtered out
 				const visualRowIndex = rowNode.rowIndex
-				if (visualRowIndex === null || visualRowIndex === undefined) return
+				console.log('[SearchNav] Row node found:', { visualRowIndex, data: rowNode.data })
+
+				if (visualRowIndex === null || visualRowIndex === undefined) {
+					console.warn('[SearchNav] visualRowIndex is null/undefined. Row might be filtered out.')
+					return
+				}
 
 				// 1. Ensure page is correct if pagination is active
 				const pageSize = gridApi.paginationGetPageSize()
 				if (pageSize > 0) {
 					const targetPage = Math.floor(visualRowIndex / pageSize)
 					const currentPage = gridApi.paginationGetCurrentPage()
+					console.log('[SearchNav] Pagination check:', { targetPage, currentPage, pageSize })
 					if (targetPage !== currentPage) {
+						console.log('[SearchNav] Moving to page:', targetPage)
 						gridApi.paginationGoToPage(targetPage)
 					}
 				}
@@ -91,17 +103,17 @@ export function QueryView() {
 				// Staggered timeouts with proper cleanup
 
 				timers.push(setTimeout(() => {
-					// 2. Vertical scroll to the node
+					console.log('[SearchNav] Executing Step 2: Vertical scroll to index', visualRowIndex)
 					gridApi.ensureNodeVisible(rowNode, 'middle')
 
 					timers.push(setTimeout(() => {
-						// 3. Horizontal scroll to the column
+						console.log('[SearchNav] Executing Step 3: Horizontal scroll to col', activeMatch.colId)
 						if (activeMatch.colId) {
 							gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
 						}
 
 						timers.push(setTimeout(() => {
-							// 4. Focus, Flash and restore input focus
+							console.log('[SearchNav] Executing Step 4: Focus and Flash')
 							gridApi.setFocusedCell(visualRowIndex, activeMatch.colId)
 
 							gridApi.flashCells({
@@ -112,11 +124,12 @@ export function QueryView() {
 							})
 
 							if (wasFocused && searchInputRef.current) {
+								console.log('[SearchNav] Restoring focus to search input')
 								timers.push(setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50))
 							}
-						}, 150)) // Wait for horizontal scroll
-					}, 100)) // Wait for vertical scroll
-				}, 100)) // Wait for pagination/filtering
+						}, 150))
+					}, 100))
+				}, 100))
 
 				return () => {
 					timers.forEach(t => clearTimeout(t))
