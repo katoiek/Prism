@@ -71,7 +71,7 @@ export function QueryView() {
 
 				const visualRowIndex = rowNode.rowIndex ?? 0
 
-				// If pagination is active, we must ensure we are on the correct page first
+				// 1. Ensure page is correct if pagination is active
 				const pageSize = gridApi.paginationGetPageSize()
 				if (pageSize > 0) {
 					const targetPage = Math.floor(visualRowIndex / pageSize)
@@ -81,30 +81,33 @@ export function QueryView() {
 					}
 				}
 
-				// Clear focus
+				// Clear previous focus to force a fresh scroll/focus update
 				gridApi.clearFocusedCell()
 
-				// Small timeout to allow pagination to render before scrolling
-				setTimeout(() => {
-					// 1. Scroll to the row node specifically
-					gridApi.ensureNodeVisible(rowNode, 'middle')
+				// Sequence: Pagination -> Vertical Scroll -> Horizontal Scroll -> Focus
+				// Each step needs slightly more delay to ensure layout shifts are complete
 
-					// 2. Horizontal scroll to the column
+				setTimeout(() => {
+					// 2. Vertical scroll
+					gridApi.ensureIndexVisible(visualRowIndex, 'middle')
+
 					setTimeout(() => {
+						// 3. Horizontal scroll
 						if (activeMatch.colId) {
 							gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
 						}
 
-						// 3. Final focus
 						setTimeout(() => {
+							// 4. Focus and Select
 							gridApi.setFocusedCell(visualRowIndex, activeMatch.colId)
 
+							// Restore input focus if it was active
 							if (wasFocused && searchInputRef.current) {
 								setTimeout(() => searchInputRef.current?.focus(), 10)
 							}
-						}, 100)
-					}, 50)
-				}, 50)
+						}, 120) // Wait for horizontal scroll
+					}, 80) // Wait for vertical scroll
+				}, 60) // Wait for pagination
 			}
 		}
 	}, [activeMatchIdx, scrollTrigger, viewMode, gridApi, exactMatches, totalMatches])
