@@ -112,15 +112,16 @@ export function QueryView() {
 							// macOS timing optimization: Row rendering might need more time
 							let column = gridApi.getColumn(activeMatch.colId)
 
-							// Fallback: If not found by ID, try searching all columns
+							// Fallback: If not found by ID, try searching all columns using modern getColumns()
 							if (!column) {
-								console.log('[SearchNav] Direct lookup failed, searching all columns...')
-								const allCols = gridApi.getAllGridColumns()
+								console.log('[SearchNav] Direct lookup failed, searching all columns with getColumns()...')
+								const allCols = gridApi.getColumns()
 								column = allCols?.find((c: any) => c.getColId() === activeMatch.colId || c.getColDef().field === activeMatch.colId)
 							}
 
 							if (!column) {
-								console.warn('[SearchNav] Column NOT found in grid model. Available IDs:', gridApi.getAllGridColumns()?.map((c: any) => c.getColId()))
+								const availableIds = gridApi.getColumns()?.map((c: any) => c.getColId())
+								console.warn('[SearchNav] Column NOT found in grid model. Available IDs:', availableIds)
 							} else {
 								console.log('[SearchNav] Column found, ensuring visible:', column.getColId())
 								gridApi.ensureColumnVisible(column)
