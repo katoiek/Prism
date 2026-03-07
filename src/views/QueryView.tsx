@@ -109,7 +109,9 @@ export function QueryView() {
 					timers.push(setTimeout(() => {
 						console.log('[SearchNav] Executing Step 3: Horizontal scroll to col', activeMatch.colId)
 						if (activeMatch.colId) {
-							gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
+							// macOS timing optimization: Row rendering might need more time before
+							// global horizontal scroll is reliable.
+							gridApi.ensureColumnVisible(activeMatch.colId)
 						}
 
 						timers.push(setTimeout(() => {
@@ -127,8 +129,8 @@ export function QueryView() {
 								console.log('[SearchNav] Restoring focus to search input')
 								timers.push(setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50))
 							}
-						}, 150))
-					}, 100))
+						}, 200)) // Focus delay
+					}, 200)) // Vertical scroll to horizontal scroll delay
 				}, 100))
 
 				return () => {
