@@ -62,8 +62,6 @@ export function QueryView() {
 		if (viewMode === 'table' && gridApi && totalMatches > 0 && exactMatches.length > 0) {
 			const activeMatch = exactMatches[activeMatchIdx]
 			if (activeMatch && activeMatch.rowId) {
-				console.log('[SearchNav] Triggered for:', { activeMatchIdx, rowId: activeMatch.rowId, colId: activeMatch.colId })
-
 				// Record if the input was focused before AG Grid steals it
 				const wasFocused = document.activeElement === searchInputRef.current
 				const timers: any[] = []
@@ -77,8 +75,6 @@ export function QueryView() {
 
 				// rowIndex is null if the row is filtered out
 				const visualRowIndex = rowNode.rowIndex
-				console.log('[SearchNav] Row node found:', { visualRowIndex, data: rowNode.data })
-
 				if (visualRowIndex === null || visualRowIndex === undefined) {
 					console.warn('[SearchNav] visualRowIndex is null/undefined. Row might be filtered out.')
 					return
@@ -89,9 +85,7 @@ export function QueryView() {
 				if (pageSize > 0) {
 					const targetPage = Math.floor(visualRowIndex / pageSize)
 					const currentPage = gridApi.paginationGetCurrentPage()
-					console.log('[SearchNav] Pagination check:', { targetPage, currentPage, pageSize })
 					if (targetPage !== currentPage) {
-						console.log('[SearchNav] Moving to page:', targetPage)
 						gridApi.paginationGoToPage(targetPage)
 					}
 				}
@@ -101,35 +95,29 @@ export function QueryView() {
 
 				// Sequence: Pagination -> Vertical Scroll -> Horizontal Scroll -> Focus + Flash
 				// Staggered timeouts with proper cleanup
-
 				timers.push(setTimeout(() => {
-					console.log('[SearchNav] Executing Step 2: Vertical scroll to index', visualRowIndex)
 					gridApi.ensureNodeVisible(rowNode, 'middle')
 
 					timers.push(setTimeout(() => {
-						console.log('[SearchNav] Executing Step 3: Horizontal scroll to col', activeMatch.colId)
 						if (activeMatch.colId) {
 							// macOS timing optimization: Row rendering might need more time
 							let column = gridApi.getColumn(activeMatch.colId)
 
 							// Fallback: If not found by ID, try searching all columns using modern getColumns()
 							if (!column) {
-								console.log('[SearchNav] Direct lookup failed, searching all columns with getColumns()...')
 								const allCols = gridApi.getColumns()
 								column = allCols?.find((c: any) => c.getColId() === activeMatch.colId || c.getColDef().field === activeMatch.colId)
 							}
 
-							if (!column) {
+							if (column) {
+								gridApi.ensureColumnVisible(column)
+							} else {
 								const availableIds = gridApi.getColumns()?.map((c: any) => c.getColId())
 								console.warn('[SearchNav] Column NOT found in grid model. Available IDs:', availableIds)
-							} else {
-								console.log('[SearchNav] Column found, ensuring visible:', column.getColId())
-								gridApi.ensureColumnVisible(column)
 							}
 						}
 
 						timers.push(setTimeout(() => {
-							console.log('[SearchNav] Executing Step 4: Focus and Flash')
 							gridApi.setFocusedCell(visualRowIndex, activeMatch.colId)
 
 							gridApi.flashCells({
@@ -140,7 +128,6 @@ export function QueryView() {
 							})
 
 							if (wasFocused && searchInputRef.current) {
-								console.log('[SearchNav] Restoring focus to search input')
 								timers.push(setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50))
 							}
 						}, 400)) // Focus delay
@@ -148,7 +135,7 @@ export function QueryView() {
 				}, 100))
 
 				return () => {
-					timers.forEach(t => clearTimeout(t))
+					timers.forEach(clearTimeout)
 				}
 			}
 		}
