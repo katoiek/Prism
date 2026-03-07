@@ -110,13 +110,20 @@ export function QueryView() {
 						console.log('[SearchNav] Executing Step 3: Horizontal scroll to col', activeMatch.colId)
 						if (activeMatch.colId) {
 							// macOS timing optimization: Row rendering might need more time
-							// Increasied delay to 400ms for stable horizontal scroll
-							const column = gridApi.getColumn(activeMatch.colId)
+							let column = gridApi.getColumn(activeMatch.colId)
+
+							// Fallback: If not found by ID, try searching all columns
 							if (!column) {
-								console.warn('[SearchNav] Column NOT found in grid model:', activeMatch.colId)
+								console.log('[SearchNav] Direct lookup failed, searching all columns...')
+								const allCols = gridApi.getAllGridColumns()
+								column = allCols?.find((c: any) => c.getColId() === activeMatch.colId || c.getColDef().field === activeMatch.colId)
+							}
+
+							if (!column) {
+								console.warn('[SearchNav] Column NOT found in grid model. Available IDs:', gridApi.getAllGridColumns()?.map((c: any) => c.getColId()))
 							} else {
-								console.log('[SearchNav] Column found, ensuring visible')
-								gridApi.ensureColumnVisible(activeMatch.colId)
+								console.log('[SearchNav] Column found, ensuring visible:', column.getColId())
+								gridApi.ensureColumnVisible(column)
 							}
 						}
 
@@ -135,8 +142,8 @@ export function QueryView() {
 								console.log('[SearchNav] Restoring focus to search input')
 								timers.push(setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50))
 							}
-						}, 400)) // Focus delay (increased for macOS)
-					}, 400)) // Vertical scroll to horizontal scroll delay (increased for macOS)
+						}, 400)) // Focus delay
+					}, 400)) // Vertical to horizontal delay
 				}, 100))
 
 				return () => {
