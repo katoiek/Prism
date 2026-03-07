@@ -64,6 +64,7 @@ export function QueryView() {
 			if (activeMatch && activeMatch.rowId) {
 				// Record if the input was focused before AG Grid steals it
 				const wasFocused = document.activeElement === searchInputRef.current
+				const timers: any[] = []
 
 				// Find the row node
 				const rowNode = gridApi.getRowNode(activeMatch.rowId)
@@ -87,23 +88,22 @@ export function QueryView() {
 				gridApi.clearFocusedCell()
 
 				// Sequence: Pagination -> Vertical Scroll -> Horizontal Scroll -> Focus + Flash
-				// We use staggered timeouts to allow AG Grid to handle internal state changes
+				// Staggered timeouts with proper cleanup
 
-				setTimeout(() => {
-					// 2. Vertical scroll to the row
-					gridApi.ensureIndexVisible(visualRowIndex, 'middle')
+				timers.push(setTimeout(() => {
+					// 2. Vertical scroll to the node
+					gridApi.ensureNodeVisible(rowNode, 'middle')
 
-					setTimeout(() => {
+					timers.push(setTimeout(() => {
 						// 3. Horizontal scroll to the column
 						if (activeMatch.colId) {
 							gridApi.ensureColumnVisible(activeMatch.colId, 'middle')
 						}
 
-						setTimeout(() => {
+						timers.push(setTimeout(() => {
 							// 4. Focus, Flash and restore input focus
 							gridApi.setFocusedCell(visualRowIndex, activeMatch.colId)
 
-							// Flash the cell so the user sees which one is active
 							gridApi.flashCells({
 								rowNodes: [rowNode],
 								columns: [activeMatch.colId],
@@ -111,13 +111,16 @@ export function QueryView() {
 								fadeDelay: 500
 							})
 
-							// Restore search input focus to allow consecutive Enter presses
 							if (wasFocused && searchInputRef.current) {
-								setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50)
+								timers.push(setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50))
 							}
-						}, 150) // Wait for horizontal scroll
-					}, 100) // Wait for vertical scroll
-				}, 100) // Wait for pagination/filtering
+						}, 150)) // Wait for horizontal scroll
+					}, 100)) // Wait for vertical scroll
+				}, 100)) // Wait for pagination/filtering
+
+				return () => {
+					timers.forEach(t => clearTimeout(t))
+				}
 			}
 		}
 	}, [activeMatchIdx, scrollTrigger, viewMode, gridApi, exactMatches, totalMatches])
