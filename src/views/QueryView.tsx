@@ -109,9 +109,15 @@ export function QueryView() {
 					timers.push(setTimeout(() => {
 						console.log('[SearchNav] Executing Step 3: Horizontal scroll to col', activeMatch.colId)
 						if (activeMatch.colId) {
-							// macOS timing optimization: Row rendering might need more time before
-							// global horizontal scroll is reliable.
-							gridApi.ensureColumnVisible(activeMatch.colId)
+							// macOS timing optimization: Row rendering might need more time
+							// Let's verify if the column exists in the grid model first
+							const column = gridApi.getColumn(activeMatch.colId)
+							if (!column) {
+								console.warn('[SearchNav] Column NOT found in grid model:', activeMatch.colId)
+							} else {
+								console.log('[SearchNav] Column found, ensuring visible')
+								gridApi.ensureColumnVisible(activeMatch.colId)
+							}
 						}
 
 						timers.push(setTimeout(() => {
@@ -129,8 +135,8 @@ export function QueryView() {
 								console.log('[SearchNav] Restoring focus to search input')
 								timers.push(setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50))
 							}
-						}, 200)) // Focus delay
-					}, 200)) // Vertical scroll to horizontal scroll delay
+						}, 300)) // Focus delay (increased)
+					}, 300)) // Vertical scroll to horizontal scroll delay (increased)
 				}, 100))
 
 				return () => {

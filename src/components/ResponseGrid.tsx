@@ -67,6 +67,9 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 
 		rowData.forEach((row) => {
 			Object.entries(row).forEach(([key, val]) => {
+				// Skip internal metadata
+				if (key === '__prism_id') return
+
 				if (val === null || val === undefined) return
 				const text = typeof val === 'object' ? JSON.stringify(val) : String(val)
 				if (text.toLowerCase().includes(query)) {
@@ -87,7 +90,7 @@ export function ResponseGrid({ data, searchQuery, onGridReady, onMatchesFound }:
 		const keys = new Set<string>()
 		rowData.forEach(row => Object.keys(row).forEach(k => keys.add(k)))
 
-		const baseCols: ColDef[] = Array.from(keys).map(key => ({
+		const baseCols: ColDef[] = Array.from(keys).filter(k => k !== '__prism_id').map(key => ({
 			field: key,
 			colId: key,
 			headerName: key.split('.').pop() || key,
