@@ -8,6 +8,7 @@ import {
 	DateFilterModule,
 	PaginationModule,
 	ValidationModule,
+	RowApiModule,
 	type ColDef
 } from 'ag-grid-community'
 
@@ -24,7 +25,8 @@ ModuleRegistry.registerModules([
 	NumberFilterModule,
 	DateFilterModule,
 	PaginationModule,
-	ValidationModule
+	ValidationModule,
+	RowApiModule
 ])
 
 export interface ExactMatchInfo {
