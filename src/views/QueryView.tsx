@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { ApiRequestForm } from '@/components/ApiRequestForm'
-import { ResponseGrid } from '@/components/ResponseGrid'
+import { ResponseGrid, type ExactMatchInfo } from '@/components/ResponseGrid'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
@@ -9,10 +9,12 @@ import { cn } from '@/lib/utils'
 import { Table, Code, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import { ConnectionSettings } from '@/components/ConnectionSettings'
 import { JsonResponse } from '@/components/JsonResponse'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
 import { useTranslation } from 'react-i18next'
 import { flattenObject, extractDataArray } from '@/lib/jsonUtils'
 import * as XLSX from 'xlsx'
+import { Search } from 'lucide-react'
 
 export function QueryView() {
 	const { t } = useTranslation()
@@ -22,6 +24,129 @@ export function QueryView() {
 	const [error, setError] = useState<string | null>(null)
 	const [isSettingsExpanded, setIsSettingsExpanded] = useState(false)
 	const [viewMode, setViewMode] = useState<'table' | 'json'>('table')
+	const [searchInput, setSearchInput] = useState('')
+	const [searchQuery, setSearchQuery] = useState('')
+	const [activeMatchIdx, setActiveMatchIdx] = useState<number>(0)
+	const [totalMatches, setTotalMatches] = useState<number>(0)
+	const [exactMatches, setExactMatches] = useState<ExactMatchInfo[]>([])
+	const [gridApi, setGridApi] = useState<any>(null)
+	const [scrollTrigger, setScrollTrigger] = useState(0)
+	const searchInputRef = useRef<HTMLInputElement>(null)
+
+	// Debounce search query to prevent heavy rendering on every keystroke
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setSearchQuery(searchInput)
+			setActiveMatchIdx(0) // Reset active match when search query changes
+		}, 500)
+		return () => clearTimeout(timer)
+	}, [searchInput])
+
+	// Navigate to next or previous match
+	const navigateNextMatch = useCallback((direction: 'next' | 'prev' = 'next') => {
+		if (totalMatches === 0) return
+		let nextIdx = activeMatchIdx
+		if (direction === 'next') {
+			nextIdx = (activeMatchIdx + 1) % totalMatches
+		} else {
+			nextIdx = (activeMatchIdx - 1 + totalMatches) % totalMatches
+		}
+		setActiveMatchIdx(nextIdx)
+		// Always increment trigger so the scroll effect fires even when idx doesn't change
+		setScrollTrigger(prev => prev + 1)
+	}, [activeMatchIdx, totalMatches])
+
+	// Scroll the grid to the active match if in table mode
+	useEffect(() => {
+		if (viewMode === 'table' && gridApi && totalMatches > 0 && exactMatches.length > 0) {
+			const activeMatch = exactMatches[activeMatchIdx]
+			if (activeMatch && activeMatch.rowId) {
+				// Record if the input was focused before AG Grid steals it
+				const wasFocused = document.activeElement === searchInputRef.current
+				const timers: any[] = []
+
+				// Find the row node
+				const rowNode = gridApi.getRowNode(activeMatch.rowId)
+				if (!rowNode) {
+					console.warn('[SearchNav] Row node NOT found for ID:', activeMatch.rowId)
+					return
+				}
+
+				// rowIndex is null if the row is filtered out
+				const visualRowIndex = rowNode.rowIndex
+				if (visualRowIndex === null || visualRowIndex === undefined) {
+					console.warn('[SearchNav] visualRowIndex is null/undefined. Row might be filtered out.')
+					return
+				}
+
+				// 1. Ensure page is correct if pagination is active
+				const pageSize = gridApi.paginationGetPageSize()
+				if (pageSize > 0) {
+					const targetPage = Math.floor(visualRowIndex / pageSize)
+					const currentPage = gridApi.paginationGetCurrentPage()
+					if (targetPage !== currentPage) {
+						gridApi.paginationGoToPage(targetPage)
+					}
+				}
+
+				// Clear previous focus
+				gridApi.clearFocusedCell()
+
+				// Sequence: Pagination -> Vertical Scroll -> Horizontal Scroll -> Focus + Flash
+				// Staggered timeouts with proper cleanup
+				timers.push(setTimeout(() => {
+					gridApi.ensureNodeVisible(rowNode, 'middle')
+
+					timers.push(setTimeout(() => {
+						if (activeMatch.colId) {
+							// macOS timing optimization: Row rendering might need more time
+							let column = gridApi.getColumn(activeMatch.colId)
+
+							// Fallback: If not found by ID, try searching all columns using modern getColumns()
+							if (!column) {
+								const allCols = gridApi.getColumns()
+								column = allCols?.find((c: any) => c.getColId() === activeMatch.colId || c.getColDef().field === activeMatch.colId)
+							}
+
+							if (column) {
+								gridApi.ensureColumnVisible(column)
+							} else {
+								const availableIds = gridApi.getColumns()?.map((c: any) => c.getColId())
+								console.warn('[SearchNav] Column NOT found in grid model. Available IDs:', availableIds)
+							}
+						}
+
+						timers.push(setTimeout(() => {
+							gridApi.setFocusedCell(visualRowIndex, activeMatch.colId)
+
+							gridApi.flashCells({
+								rowNodes: [rowNode],
+								columns: [activeMatch.colId],
+								flashDelay: 1000,
+								fadeDelay: 500
+							})
+
+							if (wasFocused && searchInputRef.current) {
+								timers.push(setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50))
+							}
+						}, 400)) // Focus delay
+					}, 400)) // Vertical to horizontal delay
+				}, 100))
+
+				return () => {
+					timers.forEach(clearTimeout)
+				}
+			}
+		}
+	}, [activeMatchIdx, scrollTrigger, viewMode, gridApi, exactMatches, totalMatches])
+
+	const handleMatchesFound = useCallback((matches: { positions: number[], count: number, exactMatches?: ExactMatchInfo[] }) => {
+		setTotalMatches(matches.count)
+		setExactMatches(matches.exactMatches || [])
+		// activeMatchIdx is kept as is, but bounded defensively on display
+	}, [])
+
+
 
 	const connection = connections.find(c => c.id === selectedConnectionId)
 	const endpoint = connection?.specContent?.endpoints.find(
@@ -238,6 +363,31 @@ export function QueryView() {
 												</TabsTrigger>
 											</TabsList>
 											<div className="flex items-center gap-3 shrink-0">
+												<div className="relative flex items-center">
+													<Search className="absolute left-2 w-3.5 h-3.5 text-muted-foreground z-10" />
+													<Input
+														ref={searchInputRef}
+														type="text"
+														placeholder={t('common.search', { defaultValue: 'Search...' })}
+														value={searchInput}
+														onChange={(e) => setSearchInput(e.target.value)}
+														onKeyDown={(e) => {
+															if (e.key === 'Enter') {
+																e.preventDefault()
+																navigateNextMatch(e.shiftKey ? 'prev' : 'next')
+															}
+														}}
+														className={cn(
+															"h-7 pl-8 text-[11px] w-[200px] md:w-[250px]",
+															searchQuery && totalMatches > 0 ? "pr-[60px]" : "pr-2"
+														)}
+													/>
+													{searchQuery && totalMatches > 0 && (
+														<span className="absolute right-2 text-[10px] text-muted-foreground tabular-nums z-10 pointer-events-none">
+															{activeMatchIdx + 1}/{totalMatches}
+														</span>
+													)}
+												</div>
 												<Button
 													variant="outline"
 													size="sm"
@@ -264,13 +414,28 @@ export function QueryView() {
 												</Badge>
 											</div>
 										</div>
-										<div className="flex-1 overflow-hidden min-w-0 w-full">
-											<TabsContent active={viewMode === 'table'} className="h-full w-full flex flex-col">
-												<ResponseGrid data={response.data} />
-											</TabsContent>
-											<TabsContent active={viewMode === 'json'} className="h-full w-full flex flex-col">
-												<JsonResponse data={response.data} headers={response.headers} />
-											</TabsContent>
+										<div className="flex-1 overflow-hidden min-w-0 w-full relative">
+											{viewMode === 'table' && (
+												<div className="h-full w-full flex flex-col relative">
+													<ResponseGrid
+														data={response.data}
+														searchQuery={searchQuery}
+														onGridReady={setGridApi}
+														onMatchesFound={handleMatchesFound}
+													/>
+												</div>
+											)}
+											{viewMode === 'json' && (
+												<div className="h-full w-full flex flex-col relative">
+													<JsonResponse
+														data={response.data}
+														headers={response.headers}
+														searchQuery={searchQuery}
+														onMatchesFound={handleMatchesFound}
+														activeMatchIdx={activeMatchIdx}
+													/>
+												</div>
+											)}
 										</div>
 									</Tabs>
 								</div>

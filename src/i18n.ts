@@ -55,6 +55,7 @@ const resources = {
 			},
 			connSettings: {
 				authTitle: 'Authentication Settings',
+				name: 'Connection Name',
 				isNotion: 'This is a Notion Connection',
 				notionVersion: 'Version:',
 				baseUrl: 'Base URL Override',
@@ -84,6 +85,7 @@ const resources = {
 				exportExcel: 'Export to Excel',
 				selectEndpointNote: 'Select an endpoint from the sidebar to begin.',
 				runRequestNote: 'Run a request to see the response here.',
+				optional: 'Optional',
 				params: 'Parameters',
 				pathParams: 'Path Parameters',
 				queryParams: 'Query Parameters',
@@ -246,6 +248,7 @@ const resources = {
 				exportExcel: 'Excelにエクスポート',
 				selectEndpointNote: 'サイドバーからエンドポイントを選択して開始してください。',
 				runRequestNote: 'リクエストを実行するとここにレスポンスが表示されます。',
+				optional: '任意',
 				params: 'パラメータ',
 				pathParams: 'パスパラメータ',
 				queryParams: 'クエリパラメータ',

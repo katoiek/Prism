@@ -11,4 +11,16 @@ export default defineConfig({
     },
   },
   base: './', // Important for Electron to load assets with relative paths
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-ag-grid': ['ag-grid-community', 'ag-grid-react'],
+          'vendor-xlsx': ['xlsx'],
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+        }
+      }
+    },
+    chunkSizeWarningLimit: 1000, // Optional: Increase visual warning limit to 1000kB
+  }
 })
