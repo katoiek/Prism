@@ -56,87 +56,75 @@ export function QueryView() {
 		setScrollTrigger(prev => prev + 1)
 	}, [activeMatchIdx, totalMatches])
 
-	// Scroll the grid to the active match if in table mode
+	// テーブルモード時にアクティブマッチのセルへスクロール＆フォーカス
 	useEffect(() => {
-		if (viewMode === 'table' && gridApi && totalMatches > 0 && exactMatches.length > 0) {
-			const activeMatch = exactMatches[activeMatchIdx]
-			if (activeMatch && activeMatch.rowId) {
-				// Record if the input was focused before AG Grid steals it
-				const wasFocused = document.activeElement === searchInputRef.current
-				const timers: any[] = []
+		if (viewMode !== 'table' || !gridApi || totalMatches === 0 || exactMatches.length === 0) return
 
-				// Find the row node
-				const rowNode = gridApi.getRowNode(activeMatch.rowId)
-				if (!rowNode) {
-					console.warn('[SearchNav] Row node NOT found for ID:', activeMatch.rowId)
-					return
-				}
+		const activeMatch = exactMatches[activeMatchIdx]
+		if (!activeMatch?.rowId) return
 
-				// rowIndex is null if the row is filtered out
-				const visualRowIndex = rowNode.rowIndex
-				if (visualRowIndex === null || visualRowIndex === undefined) {
-					console.warn('[SearchNav] visualRowIndex is null/undefined. Row might be filtered out.')
-					return
-				}
+		// 行ノードを取得
+		const rowNode = gridApi.getRowNode(activeMatch.rowId)
+		if (!rowNode) return
 
-				// 1. Ensure page is correct if pagination is active
-				const pageSize = gridApi.paginationGetPageSize()
-				if (pageSize > 0) {
-					const targetPage = Math.floor(visualRowIndex / pageSize)
-					const currentPage = gridApi.paginationGetCurrentPage()
-					if (targetPage !== currentPage) {
-						gridApi.paginationGoToPage(targetPage)
-					}
-				}
+		let isCancelled = false
+		const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-				// Clear previous focus
-				gridApi.clearFocusedCell()
+		const runScrollSequence = async () => {
+			// rowNode.rowIndex はAG Gridがフィルタ・ソート後の表示インデックスを保持している
+			const rowIndex = rowNode.rowIndex
+			if (rowIndex === null || rowIndex === undefined) return
 
-				// Sequence: Pagination -> Vertical Scroll -> Horizontal Scroll -> Focus + Flash
-				// Staggered timeouts with proper cleanup
-				timers.push(setTimeout(() => {
-					gridApi.ensureNodeVisible(rowNode, 'middle')
-
-					timers.push(setTimeout(() => {
-						if (activeMatch.colId) {
-							// macOS timing optimization: Row rendering might need more time
-							let column = gridApi.getColumn(activeMatch.colId)
-
-							// Fallback: If not found by ID, try searching all columns using modern getColumns()
-							if (!column) {
-								const allCols = gridApi.getColumns()
-								column = allCols?.find((c: any) => c.getColId() === activeMatch.colId || c.getColDef().field === activeMatch.colId)
-							}
-
-							if (column) {
-								gridApi.ensureColumnVisible(column)
-							} else {
-								const availableIds = gridApi.getColumns()?.map((c: any) => c.getColId())
-								console.warn('[SearchNav] Column NOT found in grid model. Available IDs:', availableIds)
-							}
-						}
-
-						timers.push(setTimeout(() => {
-							gridApi.setFocusedCell(visualRowIndex, activeMatch.colId)
-
-							gridApi.flashCells({
-								rowNodes: [rowNode],
-								columns: [activeMatch.colId],
-								flashDelay: 1000,
-								fadeDelay: 500
-							})
-
-							if (wasFocused && searchInputRef.current) {
-								timers.push(setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 50))
-							}
-						}, 400)) // Focus delay
-					}, 400)) // Vertical to horizontal delay
-				}, 100))
-
-				return () => {
-					timers.forEach(clearTimeout)
+			// ページネーション: 対象ページに移動
+			const pageSize = gridApi.paginationGetPageSize?.() ?? 0
+			if (pageSize > 0) {
+				const targetPage = Math.floor(rowIndex / pageSize)
+				const currentPage = gridApi.paginationGetCurrentPage?.() ?? 0
+				if (targetPage !== currentPage) {
+					gridApi.paginationGoToPage?.(targetPage)
+					await delay(200) // ページレンダリング待機
 				}
 			}
+
+			if (isCancelled) return
+
+			// 縦スクロール（対象行を中央に表示）
+			try {
+				gridApi.ensureIndexVisible(rowIndex, 'middle')
+			} catch (e) {
+				console.warn('ensureIndexVisible failed', e)
+			}
+
+			await delay(100)
+			if (isCancelled) return
+
+			// 横スクロール（対象列を表示）
+			try {
+				gridApi.ensureColumnVisible(activeMatch.colId)
+			} catch (e) {
+				console.warn('ensureColumnVisible failed', e)
+			}
+
+			await delay(100)
+			if (isCancelled) return
+
+			// セルにフォーカス（青い枠でカーソル位置を明示）
+			try {
+				gridApi.setFocusedCell(rowIndex, activeMatch.colId)
+			} catch (e) {
+				console.warn('setFocusedCell failed', e)
+			}
+
+			// 検索InputにフォーカスをEnterで次のマッチへ移動を継続できるよう戻す
+			setTimeout(() => searchInputRef.current?.focus(), 50)
+		}
+
+		// Reactとグリッドの状態が落ち着くのを待ってから実行
+		const timer = setTimeout(() => { if (!isCancelled) runScrollSequence() }, 50)
+
+		return () => {
+			isCancelled = true
+			clearTimeout(timer)
 		}
 	}, [activeMatchIdx, scrollTrigger, viewMode, gridApi, exactMatches, totalMatches])
 
