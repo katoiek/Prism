@@ -9,6 +9,7 @@ import {
 	PaginationModule,
 	ValidationModule,
 	RowApiModule,
+	ScrollApiModule,
 	type ColDef
 } from 'ag-grid-community'
 import { useTranslation } from 'react-i18next'
@@ -27,7 +28,8 @@ ModuleRegistry.registerModules([
 	DateFilterModule,
 	PaginationModule,
 	ValidationModule,
-	RowApiModule
+	RowApiModule,
+	ScrollApiModule  // ensureIndexVisible / ensureColumnVisible に必要
 ])
 
 export interface ExactMatchInfo {
